@@ -20,6 +20,7 @@ const VisitorsPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingVisitor, setEditingVisitor] = useState(null);
+  const [showPassword, setShowPassword] = useState({});
 
   // Fetch companies for Platform Admin dropdown
   const { data: companiesData } = useQuery(
