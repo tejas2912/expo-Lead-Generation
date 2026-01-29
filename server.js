@@ -51,11 +51,31 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Debug route
+app.get('/debug', (req, res) => {
+  res.status(200).json({ 
+    message: 'Debug route working',
+    timestamp: new Date().toISOString(),
+    routes: {
+      auth: '/api/auth',
+      visitors: '/api/visitors', 
+      leads: '/api/leads',
+      admin: '/api/admin'
+    }
+  });
+});
+
 // API routes
+console.log('🔍 Loading API routes...');
 app.use('/api/auth', authRoutes);
+console.log('✅ Auth routes loaded');
 app.use('/api/visitors', visitorRoutes);
+console.log('✅ Visitor routes loaded');
 app.use('/api/leads', leadRoutes);
+console.log('✅ Lead routes loaded');
 app.use('/api/admin', adminRoutes);
+console.log('✅ Admin routes loaded');
+console.log('🚀 All API routes loaded successfully');
 
 // 404 handler
 app.use('*', (req, res) => {
