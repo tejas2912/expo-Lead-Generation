@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Connection Test</title>
+</head>
+<body>
+    <h1>React App Connection Test</h1>
+    <p>If you can see this page, the React dev server is working.</p>
+    <p>Try accessing: <a href="http://localhost:3000">http://localhost:3000</a></p>
+    <button onclick="testAPI()">Test API Connection</button>
+    <div id="result"></div>
+    
+    <script>
+        async function testAPI() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = 'Testing API...';
+            
+            try {
+                const response = await fetch('http://localhost:5000/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: 'admin@platform.com',
+                        password: 'admin123'
+                    })
+                });
+                
+                const data = await response.json();
+                resultDiv.innerHTML = '<h3 style="color: green;">✅ API Working: ' + data.message + '</h3>';
+            } catch (error) {
+                resultDiv.innerHTML = '<h3 style="color: red;">❌ API Error: ' + error.message + '</h3>';
+            }
+        }
+    </script>
+</body>
+</html>
