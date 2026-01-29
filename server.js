@@ -67,14 +67,35 @@ app.get('/debug', (req, res) => {
 
 // API routes
 console.log('🔍 Loading API routes...');
-app.use('/api/auth', authRoutes);
-console.log('✅ Auth routes loaded');
-app.use('/api/visitors', visitorRoutes);
-console.log('✅ Visitor routes loaded');
-app.use('/api/leads', leadRoutes);
-console.log('✅ Lead routes loaded');
-app.use('/api/admin', adminRoutes);
-console.log('✅ Admin routes loaded');
+
+try {
+  app.use('/api/auth', authRoutes);
+  console.log('✅ Auth routes loaded');
+} catch (error) {
+  console.error('❌ Auth routes failed to load:', error);
+}
+
+try {
+  app.use('/api/visitors', visitorRoutes);
+  console.log('✅ Visitor routes loaded');
+} catch (error) {
+  console.error('❌ Visitor routes failed to load:', error);
+}
+
+try {
+  app.use('/api/leads', leadRoutes);
+  console.log('✅ Lead routes loaded');
+} catch (error) {
+  console.error('❌ Lead routes failed to load:', error);
+}
+
+try {
+  app.use('/api/admin', adminRoutes);
+  console.log('✅ Admin routes loaded');
+} catch (error) {
+  console.error('❌ Admin routes failed to load:', error);
+}
+
 console.log('🚀 All API routes loaded successfully');
 
 // 404 handler
