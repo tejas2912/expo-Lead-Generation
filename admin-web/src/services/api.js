@@ -53,6 +53,7 @@ export const visitorsAPI = {
   getById: (id) => api.get(`/visitors/${id}`),
   create: (data) => api.post('/visitors', data),
   update: (id, data) => api.put(`/visitors/${id}`, data),
+  delete: (id) => api.delete(`/visitors/${id}`),
   list: (params) => api.get('/visitors', { params }),
   getStats: () => api.get('/visitors/stats/overview'),
 };

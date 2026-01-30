@@ -6,6 +6,8 @@ import {
   PlusIcon,
   PencilIcon,
   MagnifyingGlassIcon,
+  EyeIcon,
+  EyeSlashIcon,
 } from '@heroicons/react/24/outline';
 
 const CompaniesPage = () => {
@@ -46,6 +48,16 @@ const CompaniesPage = () => {
     }
   );
 
+  // Toggle company status mutation
+  const toggleStatusMutation = useMutation(
+    ({ id, status }) => adminAPI.updateCompany(id, { status }),
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries('companies');
+      },
+    }
+  );
+
   const {
     register,
     handleSubmit,
@@ -61,6 +73,14 @@ const CompaniesPage = () => {
     }
   };
 
+  const handleToggleStatus = (company) => {
+    const newStatus = company.status === 'active' ? 'inactive' : 'active';
+    toggleStatusMutation.mutate({ 
+      id: company.id, 
+      status: newStatus 
+    });
+  };
+
   const handleEdit = (company) => {
     setEditingCompany(company);
     reset({
@@ -68,6 +88,7 @@ const CompaniesPage = () => {
       contact_email: company.contact_email || '',
       contact_phone: company.contact_phone || '',
       company_code: company.company_code || '',
+      status: company.status || 'active',
     });
     setShowCreateModal(true);
   };
@@ -202,6 +223,22 @@ const CompaniesPage = () => {
                         >
                           <PencilIcon className="h-4 w-4" />
                         </button>
+                        <button
+                          onClick={() => handleToggleStatus(company)}
+                          className={`${
+                            company.status === 'active' 
+                              ? 'text-red-600 hover:text-red-900' 
+                              : 'text-green-600 hover:text-green-900'
+                          }`}
+                          title={company.status === 'active' ? 'Deactivate' : 'Activate'}
+                          disabled={toggleStatusMutation.isLoading}
+                        >
+                          {company.status === 'active' ? (
+                            <EyeSlashIcon className="h-4 w-4" />
+                          ) : (
+                            <EyeIcon className="h-4 w-4" />
+                          )}
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -335,6 +372,17 @@ const CompaniesPage = () => {
                 {errors.contact_phone && (
                   <p className="mt-1 text-sm text-red-600">{errors.contact_phone.message}</p>
                 )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Status</label>
+                <select
+                  {...register('status')}
+                  className="input mt-1"
+                >
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </select>
               </div>
             </div>
 

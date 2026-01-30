@@ -142,15 +142,50 @@ router.put('/companies/:id',
         return res.status(404).json({ error: 'Company not found' });
       }
 
-      // Update company
+      // Update company - handle partial updates
+      const updateFields = [];
+      const updateValues = [];
+      let paramIndex = 1;
+
+      if (name !== undefined) {
+        updateFields.push(`name = $${paramIndex}`);
+        updateValues.push(name);
+        paramIndex++;
+      }
+
+      if (contact_email !== undefined) {
+        updateFields.push(`contact_email = $${paramIndex}`);
+        updateValues.push(contact_email);
+        paramIndex++;
+      }
+
+      if (contact_phone !== undefined) {
+        updateFields.push(`contact_phone = $${paramIndex}`);
+        updateValues.push(contact_phone);
+        paramIndex++;
+      }
+
+      if (status !== undefined) {
+        updateFields.push(`status = $${paramIndex}`);
+        updateValues.push(status);
+        paramIndex++;
+      }
+
+      updateFields.push(`updated_at = NOW()`);
+
+      if (updateFields.length === 1) { // Only updated_at was added
+        return res.status(400).json({ error: 'No valid fields to update' });
+      }
+
       const updateCompanyQuery = `
         UPDATE companies 
-        SET name = $1, contact_email = $2, contact_phone = $3, status = $4, updated_at = NOW()
-        WHERE id = $5
+        SET ${updateFields.join(', ')}
+        WHERE id = $${paramIndex}
         RETURNING *
       `;
 
-      const result = await query(updateCompanyQuery, [name, contact_email, contact_phone, status, id]);
+      updateValues.push(id);
+      const result = await query(updateCompanyQuery, updateValues);
       const updatedCompany = result.rows[0];
 
       res.json({
@@ -205,7 +240,7 @@ router.get('/users', authenticateToken, requireRole(['platform_admin', 'company_
     const usersQuery = `
       SELECT 
         u.id, u.full_name, u.email, u.phone, u.role, u.is_active, u.created_at,
-        c.name as company_name, c.company_code
+        c.name as company_name, c.company_code, c.status as company_status
       FROM users u
       LEFT JOIN companies c ON u.company_id = c.id
       ${whereClause}
@@ -267,7 +302,9 @@ router.post('/users-debug', (req, res) => {
 router.all('*', (req, res, next) => {
   console.log('🔍 CATCH-ALL - Method:', req.method, 'Path:', req.originalUrl);
   console.log('🔍 CATCH-ALL - Body:', req.body);
+  console.log('🔍 CATCH-ALL - About to call next()');
   next();
+  console.log('🔍 CATCH-ALL - Called next()');
 });
 
 // Create user (platform admin and company admin for employees)
@@ -667,7 +704,7 @@ router.get('/company-admins', authenticateToken, requireRole(['platform_admin'])
     const { page = 1, limit = 50, search, status } = req.query;
     const offset = (page - 1) * limit;
     
-    let whereClause = 'WHERE u.role = $1';
+    let whereClause = 'WHERE u.role = $1 AND u.is_active = true';
     let queryParams = ['company_admin'];
     let paramIndex = 2;
 
@@ -678,15 +715,19 @@ router.get('/company-admins', authenticateToken, requireRole(['platform_admin'])
     }
 
     if (status) {
-      const statusClause = status === 'active' ? 'u.is_active = true' : 'u.is_active = false';
-      whereClause += ` AND ${statusClause}`;
+      if (status === 'active') {
+        // Already filtering by active, no change needed
+      } else if (status === 'inactive') {
+        whereClause = whereClause.replace('AND u.is_active = true', 'AND u.is_active = false');
+      }
     }
 
     const adminsQuery = `
       SELECT 
         u.*,
         c.name as company_name,
-        c.company_code
+        c.company_code,
+        c.status as company_status
       FROM users u
       LEFT JOIN companies c ON u.company_id = c.id
       ${whereClause}
@@ -764,21 +805,21 @@ router.delete('/employees/:id', authenticateToken, requireRole(['company_admin']
 // Create company admin (platform admin only)
 router.post('/company-admins', authenticateToken, requireRole(['platform_admin']), validateRequest(createCompanyAdminSchema), async (req, res) => {
   try {
-    const { full_name, email, mobile, password, company_id } = req.body;
+    const { full_name, email, phone, password, company_id } = req.body;
 
     // Hash password
     const password_hash = await bcrypt.hash(password, 10);
 
     const createAdminQuery = `
-      INSERT INTO users (full_name, email, mobile, password_hash, role, company_id, is_active, created_at, updated_at)
-      VALUES ($1, $2, $3, $4, $5, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-      RETURNING id, full_name, email, mobile, role, company_id, is_active, created_at
+      INSERT INTO users (full_name, email, phone, password_hash, role, company_id, is_active, created_at, updated_at)
+      VALUES ($1, $2, $3, $4, $5, $6, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      RETURNING id, full_name, email, phone, role, company_id, is_active, created_at
     `;
 
     const result = await query(createAdminQuery, [
       full_name,
       email,
-      mobile,
+      phone,
       password_hash,
       'company_admin',
       company_id,
@@ -798,20 +839,20 @@ router.post('/company-admins', authenticateToken, requireRole(['platform_admin']
 router.put('/company-admins/:id', authenticateToken, requireRole(['platform_admin']), async (req, res) => {
   try {
     const { id } = req.params;
-    const { full_name, email, mobile, is_active } = req.body;
+    const { full_name, email, phone, company_id } = req.body;
 
     const updateAdminQuery = `
       UPDATE users 
-      SET full_name = $1, email = $2, mobile = $3, is_active = $4, updated_at = CURRENT_TIMESTAMP
+      SET full_name = $1, email = $2, phone = $3, company_id = $4, updated_at = CURRENT_TIMESTAMP
       WHERE id = $5 AND role = 'company_admin'
-      RETURNING id, full_name, email, mobile, role, company_id, is_active, updated_at
+      RETURNING id, full_name, email, phone, role, company_id, is_active, updated_at
     `;
 
     const result = await query(updateAdminQuery, [
       full_name,
       email,
-      mobile,
-      is_active,
+      phone,
+      company_id,
       id,
     ]);
 
@@ -833,6 +874,7 @@ router.put('/company-admins/:id', authenticateToken, requireRole(['platform_admi
 router.delete('/company-admins/:id', authenticateToken, requireRole(['platform_admin']), async (req, res) => {
   try {
     const { id } = req.params;
+    console.log('🔍 Delete Company Admin - ID:', id);
 
     const deleteAdminQuery = `
       UPDATE users 
@@ -841,12 +883,16 @@ router.delete('/company-admins/:id', authenticateToken, requireRole(['platform_a
       RETURNING id, full_name, email
     `;
 
+    console.log('🔍 Delete Company Admin - Executing query...');
     const result = await query(deleteAdminQuery, [id]);
+    console.log('🔍 Delete Company Admin - Query result:', result.rows);
 
     if (result.rows.length === 0) {
+      console.log('🔍 Delete Company Admin - Admin not found');
       return res.status(404).json({ error: 'Company admin not found' });
     }
 
+    console.log('🔍 Delete Company Admin - Success:', result.rows[0]);
     res.json({
       message: 'Company admin deleted successfully',
       admin: result.rows[0],

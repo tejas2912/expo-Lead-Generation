@@ -109,7 +109,7 @@ const updateLeadSchema = Joi.object({
 const createCompanyAdminSchema = Joi.object({
   full_name: Joi.string().min(2).max(200).required(),
   email: Joi.string().email().required(),
-  mobile: Joi.string().max(20).optional(),
+  phone: Joi.string().max(20).allow('').optional(),
   password: Joi.string().min(6).max(100).required(),
   company_id: Joi.string().uuid().required()
 });

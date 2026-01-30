@@ -24,6 +24,15 @@ const CompanyAdminsPage = () => {
     {
       enabled: hasRole('platform_admin'),
       retry: 2,
+      onSuccess: (data) => {
+        console.log('🔍 Companies API Response:', data);
+        console.log('🔍 Companies Data Type:', typeof data);
+        console.log('🔍 Companies Data:', data);
+        console.log('🔍 Companies Array:', Array.isArray(data?.data?.companies));
+      },
+      onError: (error) => {
+        console.error('🔍 Companies API Error:', error);
+      }
     }
   );
 
@@ -64,10 +73,17 @@ const CompanyAdminsPage = () => {
 
   // Delete company admin mutation
   const deleteAdminMutation = useMutation(
-    (id) => adminAPI.deleteCompanyAdmin(id),
+    (id) => {
+      console.log('🔍 Frontend Delete Admin - ID:', id);
+      return adminAPI.deleteCompanyAdmin(id);
+    },
     {
-      onSuccess: () => {
+      onSuccess: (data) => {
+        console.log('🔍 Frontend Delete Admin - Success:', data);
         queryClient.invalidateQueries('company-admins');
+      },
+      onError: (error) => {
+        console.log('🔍 Frontend Delete Admin - Error:', error);
       },
     }
   );
@@ -81,7 +97,23 @@ const CompanyAdminsPage = () => {
     defaultValues: {
       full_name: '',
       email: '',
-      mobile: '',
+      phone: '',
+      password: '',
+      company_id: ''
+    }
+  });
+
+  // Separate form instance for edit modal
+  const {
+    register: registerEdit,
+    handleSubmit: handleEditSubmit,
+    reset: resetEdit,
+    formState: { errors: editErrors },
+  } = useForm({
+    defaultValues: {
+      full_name: '',
+      email: '',
+      phone: '',
       password: '',
       company_id: ''
     }
@@ -92,18 +124,41 @@ const CompanyAdminsPage = () => {
     reset({
       full_name: '',
       email: '',
-      mobile: '',
+      phone: '',
       password: '',
       company_id: ''
     });
   }, [reset]);
+
+  // Auto-fill edit form when editingAdmin changes
+  React.useEffect(() => {
+    if (editingAdmin) {
+      console.log('🔍 Auto-filling EDIT form with admin data:', editingAdmin);
+      resetEdit({
+        full_name: editingAdmin.full_name || '',
+        email: editingAdmin.email || '',
+        phone: editingAdmin.phone || '',
+        password: '', // Don't pre-fill password for security
+        company_id: editingAdmin.company_id || ''
+      });
+    } else {
+      // Reset edit form when closing modal
+      resetEdit({
+        full_name: '',
+        email: '',
+        phone: '',
+        password: '',
+        company_id: ''
+      });
+    }
+  }, [editingAdmin, resetEdit]);
 
   const onSubmit = (data) => {
     console.log('🔍 Form submission data:', data);
     console.log('🔍 Data types:', {
       full_name: typeof data.full_name,
       email: typeof data.email,
-      mobile: typeof data.mobile,
+      phone: typeof data.phone,
       password: typeof data.password,
       company_id: typeof data.company_id
     });
@@ -112,7 +167,23 @@ const CompanyAdminsPage = () => {
   };
 
   const onEditSubmit = (data) => {
-    updateAdminMutation.mutate({ id: editingAdmin.id, data });
+    console.log('🔍 Edit Submit - Data:', data);
+    console.log('🔍 Edit Submit - Editing Admin ID:', editingAdmin.id);
+    console.log('🔍 Edit Submit - About to call updateAdminMutation');
+    
+    updateAdminMutation.mutate({ 
+      id: editingAdmin.id, 
+      data 
+    }, {
+      onSuccess: (response) => {
+        console.log('🔍 Edit Submit - Success:', response);
+        setEditingAdmin(null);
+        reset();
+      },
+      onError: (error) => {
+        console.error('🔍 Edit Submit - Error:', error);
+      }
+    });
   };
 
   const togglePasswordVisibility = (adminId) => {
@@ -192,18 +263,18 @@ const CompanyAdminsPage = () => {
               </div>
 
               <div>
-                <label htmlFor="edit_mobile" className="block text-sm font-medium text-gray-700">
-                  Mobile Number
+                <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
+                  Phone Number
                 </label>
                 <input
-                  {...register('mobile')}
-                  id="edit_mobile"
+                  {...register('phone')}
+                  id="phone"
                   type="tel"
                   className="input mt-1"
-                  defaultValue={editingAdmin?.mobile || ''}
+                  placeholder="Enter phone number"
                 />
-                {errors.mobile && (
-                  <p className="mt-1 text-sm text-red-600">{errors.mobile.message}</p>
+                {errors.phone && (
+                  <p className="mt-1 text-sm text-red-600">{errors.phone.message}</p>
                 )}
               </div>
 
@@ -308,7 +379,7 @@ const CompanyAdminsPage = () => {
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
                 </div>
               ) : (
-                <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
+                <div className="overflow-x-auto shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
                   <table className="min-w-full divide-y divide-gray-300">
                     <thead className="bg-gray-50">
                       <tr>
@@ -324,7 +395,7 @@ const CompanyAdminsPage = () => {
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Status
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-32">
                           Actions
                         </th>
                       </tr>
@@ -343,13 +414,13 @@ const CompanyAdminsPage = () => {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                              admin.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                              admin.company_status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                             }`}>
-                              {admin.is_active ? 'Active' : 'Inactive'}
+                              {admin.company_status || 'Active'}
                             </span>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            <div className="flex space-x-2">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center w-32">
+                            <div className="flex items-center justify-center space-x-2">
                               <button
                                 onClick={() => togglePasswordVisibility(admin.id)}
                                 className="text-gray-400 hover:text-gray-600"
@@ -362,7 +433,8 @@ const CompanyAdminsPage = () => {
                               </button>
                               <button
                                 onClick={() => setEditingAdmin(admin)}
-                                className="text-indigo-600 hover:text-indigo-900"
+                                className="text-blue-600 hover:text-blue-900 font-medium"
+                                title="Edit Admin"
                               >
                                 <PencilIcon className="h-4 w-4" />
                               </button>
@@ -389,13 +461,13 @@ const CompanyAdminsPage = () => {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                              admin.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                              admin.company_status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                             }`}>
-                              {admin.is_active ? 'Active' : 'Inactive'}
+                              {admin.company_status || 'Active'}
                             </span>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            <div className="flex space-x-2">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center w-32">
+                            <div className="flex items-center justify-center space-x-2">
                               <button
                                 onClick={() => togglePasswordVisibility(admin.id)}
                                 className="text-gray-400 hover:text-gray-600"
@@ -408,7 +480,8 @@ const CompanyAdminsPage = () => {
                               </button>
                               <button
                                 onClick={() => setEditingAdmin(admin)}
-                                className="text-indigo-600 hover:text-indigo-900"
+                                className="text-blue-600 hover:text-blue-900 font-medium"
+                                title="Edit Admin"
                               >
                                 <PencilIcon className="h-4 w-4" />
                               </button>
@@ -435,13 +508,13 @@ const CompanyAdminsPage = () => {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                              admin.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                              admin.company_status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                             }`}>
-                              {admin.is_active ? 'Active' : 'Inactive'}
+                              {admin.company_status || 'Active'}
                             </span>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            <div className="flex space-x-2">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center w-32">
+                            <div className="flex items-center justify-center space-x-2">
                               <button
                                 onClick={() => togglePasswordVisibility(admin.id)}
                                 className="text-gray-400 hover:text-gray-600"
@@ -454,7 +527,8 @@ const CompanyAdminsPage = () => {
                               </button>
                               <button
                                 onClick={() => setEditingAdmin(admin)}
-                                className="text-indigo-600 hover:text-indigo-900"
+                                className="text-blue-600 hover:text-blue-900 font-medium"
+                                title="Edit Admin"
                               >
                                 <PencilIcon className="h-4 w-4" />
                               </button>
@@ -481,13 +555,13 @@ const CompanyAdminsPage = () => {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                              admin.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                              admin.company_status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                             }`}>
-                              {admin.is_active ? 'Active' : 'Inactive'}
+                              {admin.company_status || 'Active'}
                             </span>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            <div className="flex space-x-2">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center w-32">
+                            <div className="flex items-center justify-center space-x-2">
                               <button
                                 onClick={() => togglePasswordVisibility(admin.id)}
                                 className="text-gray-400 hover:text-gray-600"
@@ -500,7 +574,8 @@ const CompanyAdminsPage = () => {
                               </button>
                               <button
                                 onClick={() => setEditingAdmin(admin)}
-                                className="text-indigo-600 hover:text-indigo-900"
+                                className="text-blue-600 hover:text-blue-900 font-medium"
+                                title="Edit Admin"
                               >
                                 <PencilIcon className="h-4 w-4" />
                               </button>
@@ -528,15 +603,37 @@ const CompanyAdminsPage = () => {
         <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full m-4">
             <h3 className="text-lg font-medium text-gray-900 mb-4">Edit Company Admin</h3>
-            <form onSubmit={handleSubmit(onEditSubmit)} className="space-y-4">
-              <input type="hidden" {...register('id')} value={editingAdmin.id} />
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handleEditSubmit((data) => {
+                console.log('🔍 Edit Submit - Data:', data);
+                console.log('🔍 Edit Submit - Editing Admin ID:', editingAdmin.id);
+                console.log('🔍 Edit Submit - About to call updateAdminMutation');
+                
+                updateAdminMutation.mutate({ 
+                  id: editingAdmin.id, 
+                  data 
+                }, {
+                  onSuccess: (response) => {
+                    console.log('🔍 Edit Submit - Success:', response);
+                    setEditingAdmin(null);
+                    resetEdit();
+                  },
+                  onError: (error) => {
+                    console.error('🔍 Edit Submit - Error:', error);
+                  }
+                });
+              })(e);
+            }} className="space-y-4">
+              <input type="hidden" {...registerEdit('id')} value={editingAdmin.id} />
               
               <div>
                 <label htmlFor="edit_full_name" className="block text-sm font-medium text-gray-700">
                   Full Name
                 </label>
                 <input
-                  {...register('full_name', { required: 'Full name is required' })}
+                  {...registerEdit('full_name', { required: 'Full name is required' })}
                   id="edit_full_name"
                   type="text"
                   className="input mt-1"
@@ -549,7 +646,7 @@ const CompanyAdminsPage = () => {
                   Email
                 </label>
                 <input
-                  {...register('email', {
+                  {...registerEdit('email', {
                     required: 'Email is required',
                     pattern: {
                       value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
@@ -564,21 +661,38 @@ const CompanyAdminsPage = () => {
               </div>
 
               <div>
-                <label htmlFor="edit_is_active" className="block text-sm font-medium text-gray-700">
-                  Status
+                <label htmlFor="edit_phone" className="block text-sm font-medium text-gray-700">
+                  Phone
+                </label>
+                <input
+                  {...registerEdit('phone')}
+                  id="edit_phone"
+                  type="tel"
+                  className="input mt-1"
+                  defaultValue={editingAdmin.phone}
+                />
+              </div>
+
+              <div>
+                <label htmlFor="edit_company" className="block text-sm font-medium text-gray-700">
+                  Company
                 </label>
                 <select
-                  {...register('is_active')}
-                  id="edit_is_active"
+                  {...registerEdit('company_id')}
+                  id="edit_company"
                   className="input mt-1"
-                  defaultValue={editingAdmin.is_active}
+                  defaultValue={editingAdmin.company_id}
                 >
-                  <option value="true">Active</option>
-                  <option value="false">Inactive</option>
+                  <option value="">Select Company</option>
+                  {(companies?.data?.companies || companies?.companies || []).map(company => (
+                    <option key={company.id} value={company.id}>
+                      {company.name}
+                    </option>
+                  ))}
                 </select>
               </div>
 
-              <div className="flex space-x-3">
+              <div className="mt-6 flex justify-end space-x-3">
                 <button
                   type="submit"
                   disabled={updateAdminMutation.isLoading}

@@ -40,31 +40,16 @@ const UsersPage = () => {
       // For company admins, only show employees from their company
       if (hasRole('company_admin')) {
         params.role = 'employee'; // Only show employees
-        console.log('🔍 Company Admin detected - filtering by role: employee');
-      } else if (hasRole('platform_admin')) {
-        console.log('🔍 Platform Admin detected - showing all users');
       }
       
-      console.log('🔍 Fetching users with params:', params);
       return adminAPI.getUsers(params);
     },
     {
       enabled: queryEnabled,
       keepPreviousData: true,
-      onSuccess: (data) => {
-        console.log('🔍 Users API success:', data);
-        console.log('🔍 Users API success - typeof:', typeof data);
-        console.log('🔍 Users API success - keys:', Object.keys(data || {}));
-        console.log('🔍 Users array:', data?.users);
-        console.log('🔍 Users count:', data?.users?.length);
-        console.log('🔍 Full response structure:', JSON.stringify(data, null, 2));
-      },
-      onError: (error) => {
-        console.error('🔍 Users API error:', error);
-      },
     }
   );
-
+  
   const users = usersData?.data?.users || [];
   const pagination = usersData?.data?.pagination || {};
 
@@ -455,11 +440,30 @@ const UsersPage = () => {
                           </td>
                         )}
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                            userItem.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                          }`}>
-                            {userItem.is_active ? 'Active' : 'Inactive'}
-                          </span>
+                          {(() => {
+                            console.log('🔍 Status Display - User:', userItem);
+                            console.log('🔍 Status Display - Role:', userItem.role);
+                            console.log('🔍 Status Display - Company Status:', userItem.company_status);
+                            console.log('🔍 Status Display - Is Active:', userItem.is_active);
+                            
+                            const isCompanyUser = userItem.role === 'company_admin' || userItem.role === 'employee';
+                            const displayStatus = isCompanyUser 
+                              ? (userItem.company_status || 'Active')
+                              : (userItem.is_active ? 'Active' : 'Inactive');
+                            
+                            console.log('🔍 Status Display - Is Company User:', isCompanyUser);
+                            console.log('🔍 Status Display - Final Status:', displayStatus);
+                            
+                            return (
+                              <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                isCompanyUser 
+                                  ? (userItem.company_status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800')
+                                  : (userItem.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800')
+                              }`}>
+                                {displayStatus}
+                              </span>
+                            );
+                          })()}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {new Date(userItem.created_at).toLocaleDateString()}
