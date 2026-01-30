@@ -32,5 +32,8 @@ services:
         value: production
     routes:
       - type: rewrite
+        source: /api/(.*)
+        destination: https://expo-lead-generation-backend.onrender.com/api/$1
+      - type: rewrite
         source: /.*
         destination: /index.html
