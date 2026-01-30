@@ -87,7 +87,8 @@ const createCompanySchema = Joi.object({
   name: Joi.string().min(2).max(200).required(),
   contact_email: Joi.string().email().optional(),
   contact_phone: Joi.string().max(50).optional(),
-  company_code: Joi.string().max(20).optional()
+  company_code: Joi.string().max(20).optional(),
+  status: Joi.string().valid('active', 'inactive').default('active')
 });
 
 const updateLeadSchema = Joi.object({

@@ -84,29 +84,35 @@ router.post('/companies',
   validateRequest(createCompanySchema), 
   async (req, res) => {
     try {
-      const { name, contact_email, contact_phone, company_code } = req.body;
+      console.log('🔍 Create Company - Request body:', req.body);
+      const { name, contact_email, contact_phone, company_code, status } = req.body;
 
       // Check if company code already exists
       if (company_code) {
+        console.log('🔍 Create Company - Checking existing code:', company_code);
         const existingCodeQuery = 'SELECT id FROM companies WHERE company_code = $1';
         const existingCode = await query(existingCodeQuery, [company_code]);
         
         if (existingCode.rows.length > 0) {
+          console.log('🔍 Create Company - Code already exists');
           return res.status(400).json({ error: 'Company code already exists' });
         }
       }
 
       // Generate company code if not provided
       const finalCompanyCode = company_code || `COMP${Date.now().toString().slice(-6)}`;
+      console.log('🔍 Create Company - Final company code:', finalCompanyCode);
 
       // Create company
       const insertCompanyQuery = `
-        INSERT INTO companies (name, contact_email, contact_phone, company_code)
-        VALUES ($1, $2, $3, $4)
+        INSERT INTO companies (name, contact_email, contact_phone, company_code, status)
+        VALUES ($1, $2, $3, $4, $5)
         RETURNING *
       `;
 
-      const result = await query(insertCompanyQuery, [name, contact_email, contact_phone, finalCompanyCode]);
+      console.log('🔍 Create Company - Executing query...');
+      const result = await query(insertCompanyQuery, [name, contact_email, contact_phone, finalCompanyCode, status || 'active']);
+      console.log('🔍 Create Company - Query result:', result.rows);
       const newCompany = result.rows[0];
 
       res.status(201).json({
