@@ -68,9 +68,8 @@ const createLeadSchema = Joi.object({
   country: Joi.string().max(120).optional(),
   interests: Joi.string().valid('Hot', 'Warm', 'Cold', '').optional(),
   notes: Joi.string().optional(),
-  follow_up_date: Joi.date().optional().allow('')
-  // priority: Joi.string().valid('high', 'medium', 'low').optional(), // Temporarily removed
-  // tags: Joi.string().optional() // Temporarily removed
+  follow_up_date: Joi.date().optional().allow(''),
+  company_id: Joi.string().uuid().optional()
 }).custom((value, helpers) => {
   // Convert empty visitor_id to undefined for proper processing
   if (value.visitor_id === '') {
