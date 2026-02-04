@@ -254,6 +254,7 @@ router.get('/', authenticateToken, async (req, res) => {
 
     res.json({
       leads: leadsResult.rows,
+      total_count: total,  // Add total count for counter display
       pagination: {
         current_page: parseInt(page),
         total_pages: totalPages,

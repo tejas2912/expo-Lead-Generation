@@ -8,6 +8,7 @@ import {
   UserPlusIcon,
   PencilIcon,
   TrashIcon,
+  ClipboardDocumentListIcon,
 } from '@heroicons/react/24/outline';
 
 const LeadsPage = () => {
@@ -213,6 +214,23 @@ const LeadsPage = () => {
             <UserPlusIcon className="h-4 w-4 mr-2" />
             Add Lead
           </button>
+        </div>
+      </div>
+
+      {/* Total Leads Counter */}
+      <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+        <div className="flex items-center">
+          <div className="flex-shrink-0">
+            <ClipboardDocumentListIcon className="h-8 w-8 text-blue-600" />
+          </div>
+          <div className="ml-4">
+            <h2 className="text-lg font-semibold text-blue-900">
+              Total Leads: <span className="text-2xl font-bold text-blue-600">{leadsData?.data?.total_count || 0}</span>
+            </h2>
+            <p className="text-sm text-blue-700">
+              All leads from your company
+            </p>
+          </div>
         </div>
       </div>
 
