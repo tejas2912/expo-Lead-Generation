@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { useForm } from 'react-hook-form';
 import { adminAPI } from '../services/api';
@@ -17,6 +17,30 @@ const CompaniesPage = () => {
   const [page, setPage] = useState(1);
   
   const queryClient = useQueryClient();
+
+  // Create a stable form reset function
+  const resetForm = useCallback(() => {
+    reset({
+      name: '',
+      company_code: '',
+      contact_email: '',
+      contact_phone: '',
+      status: 'active'
+    });
+  }, []); // Remove reset from dependency array to prevent hook violation
+
+  // Reset form when editingCompany changes to null (switching from edit to create)
+  const handleModalClose = useCallback(() => {
+    setShowCreateModal(false);
+    setEditingCompany(null);
+    resetForm();
+  }, [setShowCreateModal, setEditingCompany, resetForm]);
+
+  const handleAddCompany = useCallback(() => {
+    setEditingCompany(null);
+    resetForm();
+    setShowCreateModal(true);
+  }, [setEditingCompany, resetForm, setShowCreateModal]);
 
   // Fetch companies
   const { data: companiesData, isLoading } = useQuery(
@@ -130,7 +154,13 @@ const CompaniesPage = () => {
             className="btn btn-primary"
             onClick={() => {
               setEditingCompany(null);
-              reset();
+              reset({
+                name: '',
+                company_code: '',
+                contact_email: '',
+                contact_phone: '',
+                status: 'active'
+              });
               setShowCreateModal(true);
             }}
           >
@@ -309,24 +339,56 @@ const CompaniesPage = () => {
       {showCreateModal && (
         <Modal
           title={editingCompany ? 'Edit Company' : 'Create Company'}
-          onClose={() => {
-            setShowCreateModal(false);
-            setEditingCompany(null);
-            reset();
-          }}
+          onClose={handleModalClose}
         >
           <form onSubmit={handleSubmit(handleCreateCompany)}>
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700">Company Name</label>
                 <input
-                  {...register('name', { required: 'Company name is required' })}
+                  {...register('name', { 
+                    required: 'Company name is required',
+                    minLength: {
+                      value: 2,
+                      message: 'Company name must be at least 2 characters'
+                    },
+                    maxLength: {
+                      value: 200,
+                      message: 'Company name cannot exceed 200 characters'
+                    },
+                    pattern: {
+                      value: /^[a-zA-Z0-9\s&.,'-]+$/,
+                      message: 'Company name can only contain letters, numbers, spaces, and basic punctuation'
+                    }
+                  })}
                   type="text"
                   className="input mt-1"
                   placeholder="Enter company name"
                 />
                 {errors.name && (
                   <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Contact Email</label>
+                <input
+                  {...register('contact_email', {
+                    pattern: {
+                      value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                      message: 'Please enter a valid email address',
+                    },
+                    maxLength: {
+                      value: 255,
+                      message: 'Email address cannot exceed 255 characters'
+                    }
+                  })}
+                  type="email"
+                  className="input mt-1"
+                  placeholder="Enter contact email"
+                />
+                {errors.contact_email && (
+                  <p className="mt-1 text-sm text-red-600">{errors.contact_email.message}</p>
                 )}
               </div>
 
@@ -344,30 +406,36 @@ const CompaniesPage = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700">Contact Email</label>
-                <input
-                  {...register('contact_email', {
-                    pattern: {
-                      value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                      message: 'Invalid email address',
-                    },
-                  })}
-                  type="email"
-                  className="input mt-1"
-                  placeholder="Enter contact email"
-                />
-                {errors.contact_email && (
-                  <p className="mt-1 text-sm text-red-600">{errors.contact_email.message}</p>
-                )}
-              </div>
-
-              <div>
                 <label className="block text-sm font-medium text-gray-700">Contact Phone</label>
                 <input
-                  {...register('contact_phone')}
+                  {...register('contact_phone', {
+                    maxLength: {
+                      value: 10,
+                      message: 'Phone number cannot exceed 10 digits'
+                    },
+                    pattern: {
+                      value: /^[2-9][\d\s\-\(\)]*$/,
+                      message: 'Phone number cannot start with 1 or 0',
+                    },
+                    validate: {
+                      value: (value) => {
+                        if (!value) return true; // Allow empty
+                        const digitsOnly = value.replace(/\D/g, '');
+                        
+                        // Check if starts with 1 or 0
+                        if (digitsOnly.startsWith('1') || digitsOnly.startsWith('0')) {
+                          return 'Phone number cannot start with 1 or 0';
+                        }
+                        
+                        // Check 10 digit limit
+                        return digitsOnly.length <= 10 || 'Phone number cannot exceed 10 digits';
+                      }
+                    }
+                  })}
                   type="tel"
                   className="input mt-1"
-                  placeholder="Enter contact phone"
+                  placeholder="Enter contact phone (e.g., 555-123-4567)"
+                  maxLength={10}
                 />
                 {errors.contact_phone && (
                   <p className="mt-1 text-sm text-red-600">{errors.contact_phone.message}</p>
