@@ -87,7 +87,10 @@ const VisitorsPage = () => {
     {
       onSuccess: () => {
         queryClient.invalidateQueries('visitors');
+        setShowAddForm(false);
         setEditingVisitor(null);
+        reset();
+        alert('Visitor updated successfully!');
       },
     }
   );
@@ -152,7 +155,7 @@ const VisitorsPage = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+      <div className="max-w-full mx-auto py-6 sm:px-6 lg:px-8 xl:px-12">
         <div className="md:flex md:items-center md:justify-between mb-6">
           <div className="flex-1 min-w-0">
             <h2 className="text-2xl font-bold leading-7 text-gray-900 sm:truncate sm:tracking-tight">
@@ -241,11 +244,30 @@ const VisitorsPage = () => {
                     Phone Number *
                   </label>
                   <input
-                    {...register('phone', { required: 'Phone number is required' })}
+                    {...register('phone', { 
+                      required: 'Phone number is required',
+                      pattern: {
+                        value: /^[6-9]\d{9}$/,
+                        message: 'Please enter a valid 10-digit phone number starting with 6-9'
+                      },
+                      minLength: {
+                        value: 10,
+                        message: 'Phone number must be exactly 10 digits'
+                      },
+                      maxLength: {
+                        value: 10,
+                        message: 'Phone number must be exactly 10 digits'
+                      }
+                    })}
                     id="phone"
                     type="tel"
                     className="input mt-1"
-                    placeholder="Enter phone number"
+                    placeholder="Enter 10-digit phone number"
+                    maxLength={10}
+                    minLength={10}
+                    onInput={(e) => {
+                      e.target.value = e.target.value.replace(/[^0-9]/g, '').slice(0, 10);
+                    }}
                   />
                   {errors.phone && (
                     <p className="mt-1 text-sm text-red-600">{errors.phone.message}</p>
@@ -347,6 +369,15 @@ const VisitorsPage = () => {
 
         {/* Visitors Table */}
         <div className="bg-white shadow overflow-hidden sm:rounded-md">
+          {/* Total Visitors Count */}
+          <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+            <div className="flex items-center">
+              <UserGroupIcon className="h-5 w-5 text-gray-500 mr-2" />
+              <span className="text-sm font-medium text-gray-700">
+                Total Visitors: {pagination.total || visitors.length}
+              </span>
+            </div>
+          </div>
           {isLoading ? (
             <div className="p-6 text-center">
               <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
@@ -364,28 +395,28 @@ const VisitorsPage = () => {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
+              <table className="w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-40">
                       Name
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-28">
                       Phone
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-36">
                       Email
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">
                       Organization
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">
                       Designation
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-36">
                       Location
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
                       Actions
                     </th>
                   </tr>
@@ -393,25 +424,25 @@ const VisitorsPage = () => {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {visitors.map((visitor) => (
                     <tr key={visitor.id}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 w-40">
                         {visitor.full_name}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 w-28">
                         {visitor.phone}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 w-36">
                         {visitor.email || 'N/A'}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 w-32">
                         {visitor.organization || 'N/A'}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 w-32">
                         {visitor.designation || 'N/A'}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 w-36">
                         {visitor.city && visitor.country ? `${visitor.city}, ${visitor.country}` : 'N/A'}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 w-20">
                         <div className="flex space-x-2">
                           <button
                             onClick={() => handleEdit(visitor)}
