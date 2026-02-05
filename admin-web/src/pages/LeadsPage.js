@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { useForm } from 'react-hook-form';
-import { leadsAPI, visitorsAPI } from '../services/api';
+import { leadsAPI, visitorsAPI, adminAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import {
   MagnifyingGlassIcon,
@@ -22,6 +22,17 @@ const LeadsPage = () => {
   
   const queryClient = useQueryClient();
 
+  // Fetch companies for Platform Admin dropdown
+  const { data: companiesData } = useQuery(
+    'companies',
+    () => adminAPI.getCompanies(),
+    {
+      enabled: hasRole('platform_admin'),
+    }
+  );
+
+  const companies = companiesData?.data?.companies || [];
+
   // Fetch leads
   const { data: leadsData, isLoading } = useQuery(
     ['leads', { page, search: searchTerm }],
@@ -39,6 +50,20 @@ const LeadsPage = () => {
         queryClient.invalidateQueries('leads');
         setShowCreateModal(false);
         setEditingLead(null);
+        alert('Lead updated successfully!');
+      },
+      onError: (error) => {
+        console.error('Lead update error:', error);
+        console.error('Error response:', error.response?.data);
+        console.error('Error status:', error.response?.status);
+        console.error('Error headers:', error.response?.headers);
+        let errorMessage = 'Failed to update lead';
+        
+        if (error.response?.data?.error) {
+          errorMessage = error.response.data.error;
+        }
+        
+        alert(`Error: ${errorMessage}`);
       },
     }
   );
@@ -58,6 +83,18 @@ const LeadsPage = () => {
       setEditingLead(null);
       setSelectedVisitor(null);
       setVisitorSearchPhone('');
+      alert('Lead created successfully!');
+    },
+    onError: (error) => {
+      console.error('Lead creation error:', error);
+      console.error('Error response:', error.response?.data);
+      let errorMessage = 'Failed to create lead';
+      
+      if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      }
+      
+      alert(`Error: ${errorMessage}`);
     },
   });
 
@@ -111,14 +148,29 @@ const LeadsPage = () => {
 
   const handleCreateLead = (data) => {
     if (editingLead) {
-      updateMutation.mutate({ id: editingLead.id, data });
+      // For updates, prepare data with role-based logic
+      let updateData = { ...data };
+      
+      // Remove company_id for non-Platform Admin updates
+      if (!hasRole('platform_admin')) {
+        const { company_id, ...dataWithoutCompanyId } = updateData;
+        updateData = dataWithoutCompanyId;
+      }
+      
+      updateMutation.mutate({ id: editingLead.id, data: updateData });
     } else {
       // For new leads, include visitor details if visitor_id is not present
-      const leadData = {
+      let leadData = {
         ...data,
         // If visitor_id exists, use existing visitor
         // If not, backend will create new visitor with provided details
       };
+      
+      // Remove company_id for Company Admin (backend will use user's company)
+      if (!hasRole('platform_admin')) {
+        const { company_id, ...dataWithoutCompanyId } = leadData;
+        leadData = dataWithoutCompanyId;
+      }
       
       console.log('🔍 Lead creation data:', leadData);
       console.log('🔍 Visitor ID:', leadData.visitor_id);
@@ -139,6 +191,7 @@ const LeadsPage = () => {
     setEditingLead(lead);
     reset({
       // Use visitor fields from the joined query, handle null values
+      ...(hasRole('platform_admin') && { company_id: lead.company_id || '' }),
       organization: lead.organization || lead.visitor_organization || '',
       designation: lead.designation || lead.visitor_designation || '',
       city: lead.city || lead.visitor_city || '',
@@ -204,7 +257,8 @@ const LeadsPage = () => {
                 country: '',
                 interests: '',
                 notes: '',
-                follow_up_date: ''
+                follow_up_date: '',
+                ...(hasRole('platform_admin') && { company_id: '' })
               });
               setSelectedVisitor(null);
               setVisitorSearchPhone('');
@@ -428,7 +482,8 @@ const LeadsPage = () => {
                       className="input flex-1"
                       placeholder="Enter phone number"
                       value={visitorSearchPhone}
-                      onChange={(e) => setVisitorSearchPhone(e.target.value)}
+                      onChange={(e) => setVisitorSearchPhone(e.target.value.replace(/[^0-9]/g, '').slice(0, 10))}
+                      maxLength={10}
                     />
                     <button
                       type="button"
@@ -469,9 +524,31 @@ const LeadsPage = () => {
                         type="tel"
                         className="input mt-1 bg-gray-50"
                         placeholder="Phone number"
-                        {...register('phone')}
+                        {...register('phone', { 
+                          required: 'Phone number is required',
+                          pattern: {
+                            value: /^[6-9]\d{9}$/,
+                            message: 'Please enter a valid 10-digit phone number starting with 6-9'
+                          },
+                          minLength: {
+                            value: 10,
+                            message: 'Phone number must be exactly 10 digits'
+                          },
+                          maxLength: {
+                            value: 10,
+                            message: 'Phone number must be exactly 10 digits'
+                          }
+                        })}
                         disabled={!!selectedVisitor} // Only disabled when visitor is found
+                        maxLength={10}
+                        minLength={10}
+                        onInput={(e) => {
+                          e.target.value = e.target.value.replace(/[^0-9]/g, '').slice(0, 10);
+                        }}
                       />
+                      {errors.phone && (
+                        <p className="mt-1 text-sm text-red-600">{errors.phone.message}</p>
+                      )}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700">Full Name *</label>
@@ -536,18 +613,6 @@ const LeadsPage = () => {
                         disabled={!!selectedVisitor}
                       />
                     </div>
-                    <div className="col-span-2">
-                      <label className="block text-sm font-medium text-gray-700">Interest Level</label>
-                      <select
-                        {...register('interests')}
-                        className="input mt-1"
-                      >
-                        <option value="">Select Interest Level</option>
-                        <option value="Hot">Hot</option>
-                        <option value="Warm">Warm</option>
-                        <option value="Cold">Cold</option>
-                      </select>
-                    </div>
                   </div>
                 </div>
               )}
@@ -556,6 +621,25 @@ const LeadsPage = () => {
               <div className="border-t pt-4">
                 <h3 className="text-lg font-medium text-gray-900 mb-4">Lead Information</h3>
                 <div className="grid grid-cols-2 gap-4">
+                  {hasRole('platform_admin') && (
+                    <div className="col-span-2">
+                      <label className="block text-sm font-medium text-gray-700">Company *</label>
+                      <select
+                        {...register('company_id', { required: 'Company is required for platform admin' })}
+                        className="input mt-1"
+                      >
+                        <option value="">Select Company</option>
+                        {companies.map((company) => (
+                          <option key={company.id} value={company.id}>
+                            {company.name}
+                          </option>
+                        ))}
+                      </select>
+                      {errors.company_id && (
+                        <p className="mt-1 text-sm text-red-600">{errors.company_id.message}</p>
+                      )}
+                    </div>
+                  )}
                   <div className="col-span-2">
                     <label className="block text-sm font-medium text-gray-700">Interest Level</label>
                     <select
