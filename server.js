@@ -9,6 +9,7 @@ const authRoutes = require('./routes/auth');
 const visitorRoutes = require('./routes/visitors');
 const leadRoutes = require('./routes/leads');
 const adminRoutes = require('./routes/admin');
+const mobileRoutes = require('./routes/mobile');
 
 const app = express();
 
@@ -64,7 +65,8 @@ app.get('/debug', (req, res) => {
       auth: '/api/auth',
       visitors: '/api/visitors', 
       leads: '/api/leads',
-      admin: '/api/admin'
+      admin: '/api/admin',
+      mobile: '/api/mobile'
     }
   });
 });
@@ -98,6 +100,13 @@ try {
   console.log('✅ Admin routes loaded');
 } catch (error) {
   console.error('❌ Admin routes failed to load:', error);
+}
+
+try {
+  app.use('/api/mobile', mobileRoutes);
+  console.log('✅ Mobile routes loaded');
+} catch (error) {
+  console.error('❌ Mobile routes failed to load:', error);
 }
 
 console.log('🚀 All API routes loaded successfully');
