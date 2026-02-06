@@ -409,6 +409,43 @@ router.put('/leads/:id',
 // Search visitors (global search)
 router.get('/visitors/search', authenticateToken, requireMobileAuth, async (req, res) => {
   try {
+    const { phone } = req.query;
+    
+    if (!phone) {
+      return res.status(400).json({ error: 'Phone number is required for search' });
+    }
+
+    // Clean phone number (remove non-digits)
+    const cleanPhone = phone.replace(/\D/g, '');
+    
+    if (cleanPhone.length < 3) {
+      return res.status(400).json({ error: 'Phone number must be at least 3 digits' });
+    }
+
+    const searchQuery = `
+      SELECT id, full_name, email, phone, organization, designation, city, country, interests, created_at, updated_at
+      FROM visitors 
+      WHERE phone ILIKE $1
+      ORDER BY created_at DESC
+      LIMIT 10
+    `;
+
+    const result = await query(searchQuery, [`%${cleanPhone}%`]);
+
+    res.json({
+      message: 'Visitors searched successfully',
+      visitors: result.rows,
+      count: result.rows.length
+    });
+  } catch (error) {
+    console.error('Mobile visitor search error:', error);
+    res.status(500).json({ error: 'Failed to search visitors' });
+  }
+});
+
+// Search visitors (global search) - alternative endpoint
+router.get('/visitors/search-all', authenticateToken, requireMobileAuth, async (req, res) => {
+  try {
     const { phone, full_name } = req.query;
     
     if (!phone && !full_name) {
@@ -432,7 +469,8 @@ router.get('/visitors/search', authenticateToken, requireMobileAuth, async (req,
     }
 
     const searchQuery = `
-      SELECT * FROM visitors 
+      SELECT id, full_name, email, phone, organization, designation, city, country, interests, created_at, updated_at
+      FROM visitors 
       ${whereClause}
       ORDER BY created_at DESC
       LIMIT 20
