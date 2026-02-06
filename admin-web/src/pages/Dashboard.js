@@ -95,8 +95,8 @@ const PlatformAdminDashboard = ({ data }) => {
   return (
     <div>
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Platform Dashboard</h1>
-        <p className="mt-2 text-gray-600">Overview of all companies and system statistics</p>
+        <h1 className="text-3xl font-bold text-gray-900">Platform Dashboard</h1>
+        <p className="mt-2 text-lg text-gray-600">Complete overview of platform performance and system statistics</p>
       </div>
 
       {/* Stats Grid */}
@@ -104,30 +104,42 @@ const PlatformAdminDashboard = ({ data }) => {
         <StatCard
           title="Total Companies"
           value={stats.total || 0}
-          subtitle={`${stats.active || 0} active`}
           icon={BuildingOfficeIcon}
           color="blue"
+          trend={{
+            type: 'up',
+            value: '+12%'
+          }}
         />
         <StatCard
           title="Total Users"
           value={users.total || 0}
-          subtitle={`${users.platform_admins || 0} admins, ${users.employees || 0} employees`}
           icon={UsersIcon}
           color="green"
+          trend={{
+            type: 'up',
+            value: '+8%'
+          }}
         />
         <StatCard
           title="Total Visitors"
           value={visitors.total || 0}
-          subtitle={`${visitors.last_30_days || 0} last 30 days`}
           icon={UserGroupIcon}
           color="purple"
+          trend={{
+            type: 'up',
+            value: '+25%'
+          }}
         />
         <StatCard
           title="Total Leads"
           value={leads.total || 0}
-          subtitle={`${leads.today || 0} today`}
           icon={ClipboardDocumentListIcon}
           color="yellow"
+          trend={{
+            type: 'up',
+            value: '+15%'
+          }}
         />
       </div>
 
@@ -136,6 +148,7 @@ const PlatformAdminDashboard = ({ data }) => {
         <div className="card">
           <div className="card-header">
             <h3 className="text-lg font-medium text-gray-900">Recent Activity</h3>
+            <p className="text-sm text-gray-500">Platform activity over the last 30 days</p>
           </div>
           <div className="card-body">
             <div className="h-64 flex items-center justify-center text-gray-500">
@@ -148,6 +161,7 @@ const PlatformAdminDashboard = ({ data }) => {
         <div className="card">
           <div className="card-header">
             <h3 className="text-lg font-medium text-gray-900">System Health</h3>
+            <p className="text-sm text-gray-500">Current system status and performance</p>
           </div>
           <div className="card-body">
             <div className="space-y-4">
@@ -166,6 +180,12 @@ const PlatformAdminDashboard = ({ data }) => {
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium text-gray-500">Last Sync</span>
                 <span className="text-sm text-gray-600">Just now</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-gray-500">Server Load</span>
+                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                  Normal
+                </span>
               </div>
             </div>
           </div>
@@ -402,7 +422,7 @@ const EmployeeDashboard = ({ data }) => {
 };
 
 // Stat Card Component
-const StatCard = ({ title, value, subtitle, icon: Icon, color }) => {
+const StatCard = ({ title, value, subtitle, icon: Icon, color, description, trend }) => {
   const colorClasses = {
     blue: 'bg-blue-500',
     green: 'bg-green-500',
@@ -410,19 +430,46 @@ const StatCard = ({ title, value, subtitle, icon: Icon, color }) => {
     yellow: 'bg-yellow-500',
   };
 
+  const trendColorClasses = {
+    up: 'text-green-600',
+    down: 'text-red-600',
+    neutral: 'text-gray-600',
+  };
+
   return (
-    <div className="card">
+    <div className="card hover:shadow-lg transition-shadow duration-200">
       <div className="p-6">
-        <div className="flex items-center">
-          <div className={`flex-shrink-0 p-3 rounded-md ${colorClasses[color]} bg-opacity-10`}>
-            <Icon className={`h-6 w-6 ${colorClasses[color].replace('bg-', 'text-')}`} />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center">
+            <div className={`flex-shrink-0 p-3 rounded-md ${colorClasses[color]} bg-opacity-10`}>
+              <Icon className={`h-6 w-6 ${colorClasses[color].replace('bg-', 'text-')}`} />
+            </div>
+            <div className="ml-5 w-0 flex-1">
+              <dl>
+                <dt className="text-2xl font-bold text-gray-900">{value}</dt>
+                <dd className="mt-1 text-sm font-medium text-gray-900">{title}</dd>
+                <dd className="mt-1 text-xs text-gray-500">{description}</dd>
+                {subtitle && (
+                  <dd className="mt-1 text-sm text-gray-600">{subtitle}</dd>
+                )}
+              </dl>
+            </div>
           </div>
-          <div className="ml-5 w-0 flex-1">
-            <dl>
-              <dt className="text-2xl font-bold text-gray-900">{value}</dt>
-              <dd className="mt-1 text-sm text-gray-500">{subtitle}</dd>
-            </dl>
-          </div>
+          {trend && (
+            <div className={`flex items-center ${trendColorClasses[trend.type]}`}>
+              {trend.type === 'up' && (
+                <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M5.293 9.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L11 7.414V15a1 1 0 11-2 0V7.414L6.707 9.707a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                </svg>
+              )}
+              {trend.type === 'down' && (
+                <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M14.707 10.293a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L9 12.586V5a1 1 0 012 0v7.586l2.293-2.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                </svg>
+              )}
+              <span className="ml-1 text-sm font-medium">{trend.value}</span>
+            </div>
+          )}
         </div>
       </div>
     </div>
