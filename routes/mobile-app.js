@@ -143,7 +143,7 @@ router.get('/visitors/check-phone/:phone', requireAuth, async (req, res) => {
 
     // Search for visitor by phone
     const visitorQuery = `
-      SELECT id, full_name, phone, email, created_at
+      SELECT id, full_name, phone, email, organization, designation, city, country, created_at
       FROM visitors 
       WHERE phone = $1
       ORDER BY created_at DESC
@@ -175,6 +175,10 @@ router.get('/visitors/check-phone/:phone', requireAuth, async (req, res) => {
       full_name: visitor.full_name,
       phone: visitor.phone,
       email: visitor.email,
+      organization: visitor.organization,
+      designation: visitor.designation,
+      city: visitor.city,
+      country: visitor.country,
       last_visit: stats.last_visit,
       total_visits: parseInt(stats.total_visits)
     };
