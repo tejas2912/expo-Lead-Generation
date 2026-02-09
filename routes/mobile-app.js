@@ -28,7 +28,12 @@ router.post('/visitors', requireAuth, async (req, res) => {
   try {
     console.log('🔍 Mobile visitor registration - Request received');
     console.log('🔍 Mobile visitor registration - User:', req.user);
-    console.log('🔍 Mobile visitor registration - Body:', req.body);
+    console.log('🔍 Mobile visitor registration - Body:');
+    console.log('🔍 Request Body Analysis:');
+    console.log('🔍 - Raw request body:', req.body);
+    console.log('🔍 - Request body type:', typeof req.body);
+    console.log('🔍 - Request body keys:', Object.keys(req.body));
+    console.log('🔍 - Request body values:', Object.values(req.body));
     
     const {
       full_name,
@@ -43,6 +48,19 @@ router.post('/visitors', requireAuth, async (req, res) => {
       follow_up_date,
       employee_id
     } = req.body;
+
+    console.log('🔍 Extracted fields:');
+    console.log('🔍 - full_name:', full_name, 'type:', typeof full_name);
+    console.log('🔍 - email:', email, 'type:', typeof email);
+    console.log('🔍 - phone:', phone, 'type:', typeof phone);
+    console.log('🔍 - organization:', organization, 'type:', typeof organization);
+    console.log('🔍 - designation:', designation, 'type:', typeof designation);
+    console.log('🔍 - city:', city, 'type:', typeof city);
+    console.log('🔍 - country:', country, 'type:', typeof country);
+    console.log('🔍 - interests:', interests, 'type:', typeof interests);
+    console.log('🔍 - notes:', notes, 'type:', typeof notes);
+    console.log('🔍 - follow_up_date:', follow_up_date, 'type:', typeof follow_up_date);
+    console.log('🔍 - employee_id:', employee_id, 'type:', typeof employee_id);
 
     console.log('🔍 Mobile visitor registration - Extracted fields:', {
       full_name,
@@ -103,12 +121,25 @@ router.post('/visitors', requireAuth, async (req, res) => {
         `;
         
         console.log('🔍 Visitor SQL query:', createVisitorQuery);
-        console.log('🔍 Visitor SQL parameters:', [full_name, email, phone, organization, designation, city, country]);
+        console.log('🔍 Visitor SQL parameters:', [
+          full_name || null,  // $1
+          email || null,     // $2
+          phone || null,     // $3
+          organization || null, // $4
+          designation || null, // $5
+          city || null,       // $6
+          // created_at and updated_at use NOW() directly
+        ]);
         
         let visitorResult;
         try {
           visitorResult = await query(createVisitorQuery, [
-            full_name, email, phone, organization, designation, city, country
+            full_name || null,  // $1
+            email || null,     // $2
+            phone || null,     // $3
+            organization || null, // $4
+            designation || null, // $5
+            city || null        // $6
           ]);
           console.log('🔍 Visitor created successfully:', visitorResult.rows[0]);
         } catch (visitorError) {
@@ -138,12 +169,31 @@ router.post('/visitors', requireAuth, async (req, res) => {
       `;
       
       console.log('🔍 Lead SQL query:', createLeadQuery);
-      console.log('🔍 Lead SQL parameters:', [visitorId, finalEmployeeId, companyId, interests, organization, designation, city, country, notes, follow_up_date || null]);
+      console.log('🔍 Lead SQL parameters:', [
+        visitorId,           // $1
+        finalEmployeeId,      // $2
+        companyId,           // $3
+        interests || null,   // $4
+        organization || null, // $5
+        designation || null, // $6
+        city || null,       // $7
+        country || null,     // $8
+        notes || null,       // $9
+        // created_at uses NOW() directly
+      ]);
       
       let leadResult;
       try {
         leadResult = await query(createLeadQuery, [
-          visitorId, finalEmployeeId, companyId, interests, organization, designation, city, country, notes, follow_up_date || null
+          visitorId,           // $1
+          finalEmployeeId,      // $2
+          companyId,           // $3
+          interests || null,   // $4
+          organization || null, // $5
+          designation || null, // $6
+          city || null,       // $7
+          country || null,     // $8
+          notes || null        // $9
         ]);
         console.log('🔍 Lead created successfully:', leadResult.rows[0]);
       } catch (leadError) {
@@ -165,6 +215,12 @@ router.post('/visitors', requireAuth, async (req, res) => {
       const lead = leadResult.rows[0];
 
       // Format response to match mobile app expectations
+      console.log('🔍 Formatting response - Field mapping debug:');
+      console.log('🔍 - Raw visitor data from DB:', visitor);
+      console.log('🔍 - Raw lead data from DB:', lead);
+      console.log('🔍 - Request body fields:', Object.keys(req.body));
+      console.log('🔍 - Request body values:', req.body);
+      
       const responseVisitor = {
         id: visitor.id,
         full_name: visitor.full_name,
@@ -182,15 +238,23 @@ router.post('/visitors', requireAuth, async (req, res) => {
         visitor_id: lead.visitor_id,
         employee_id: lead.employee_id,
         company_id: lead.company_id,
-        interests: interests,
-        organization: organization,
-        designation: designation,
-        city: city,
-        country: country,
-        notes: notes,
+        interests: interests,  // From request body, not DB
+        organization: organization,  // From request body, not DB
+        designation: designation,  // From request body, not DB
+        city: city,          // From request body, not DB
+        country: country,      // From request body, not DB
+        notes: notes,          // From request body, not DB
         follow_up_date: lead.follow_up_date,
         created_at: lead.created_at
       };
+
+      console.log('🔍 - Response visitor object:', responseVisitor);
+      console.log('🔍 - Response lead object:', responseLead);
+      console.log('🔍 - Final response structure:', {
+        message: 'Visitor registered successfully',
+        visitor: responseVisitor,
+        lead: responseLead
+      });
 
       console.log('🔍 Mobile visitor registration - Success:', { 
         visitor: responseVisitor, 
