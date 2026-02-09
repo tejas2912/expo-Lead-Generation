@@ -73,16 +73,11 @@ router.post('/visitors', requireAuth, async (req, res) => {
     console.log('🔍 - employee_id stringified:', String(employee_id));
     console.log('🔍 - req.user.id stringified:', String(req.user.id));
     
-    // Convert both to string for comparison (UUID comparison issue)
-    if (employee_id && String(employee_id) !== String(req.user.id)) {
-      console.log('🔍 Mobile visitor registration - Employee ID mismatch:', employee_id, 'vs', req.user.id);
-      return res.status(403).json({ error: 'Employee ID mismatch' });
-    }
-
-    const finalEmployeeId = employee_id || req.user.id;
+    // Always use JWT user.id for security and reliability
+    const finalEmployeeId = req.user.id;  // Use JWT user.id, not request employee_id
     const companyId = req.user.company_id;
     
-    console.log('🔍 Mobile visitor registration - Final IDs:', { finalEmployeeId, companyId });
+    console.log('🔍 Mobile visitor registration - Using JWT user:', { finalEmployeeId, companyId });
 
     // Check if visitor already exists by phone
     const existingVisitorQuery = 'SELECT id, created_at FROM visitors WHERE phone = $1';
