@@ -91,13 +91,13 @@ router.post('/visitors', requireAuth, async (req, res) => {
     } else {
       // Create new visitor
       const createVisitorQuery = `
-        INSERT INTO visitors (full_name, email, phone, organization, designation, city, country, interests, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
-        RETURNING id, full_name, email, phone, organization, designation, city, country, interests, created_at
+        INSERT INTO visitors (full_name, email, phone, organization, designation, city, country, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+        RETURNING id, full_name, email, phone, organization, designation, city, country, created_at
       `;
       
       const visitorResult = await query(createVisitorQuery, [
-        full_name, email, phone, organization, designation, city, country, interests
+        full_name, email, phone, organization, designation, city, country
       ]);
       
       visitorId = visitorResult.rows[0].id;
@@ -106,13 +106,13 @@ router.post('/visitors', requireAuth, async (req, res) => {
 
     // Create lead
     const createLeadQuery = `
-      INSERT INTO visitor_leads (visitor_id, employee_id, company_id, notes, follow_up_date, created_at)
-      VALUES ($1, $2, $3, $4, $5, NOW())
-      RETURNING id, visitor_id, employee_id, company_id, status, created_at
+      INSERT INTO visitor_leads (visitor_id, employee_id, company_id, interests, organization, designation, city, country, notes, follow_up_date, created_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
+      RETURNING id, visitor_id, employee_id, company_id, created_at
     `;
 
     const leadResult = await query(createLeadQuery, [
-      visitorId, finalEmployeeId, companyId, notes, follow_up_date || null
+      visitorId, finalEmployeeId, companyId, interests, organization, designation, city, country, notes, follow_up_date || null
     ]);
 
     // Get visitor details for response
