@@ -115,32 +115,33 @@ router.post('/visitors', requireAuth, async (req, res) => {
         });
         
         const createVisitorQuery = `
-          INSERT INTO visitors (full_name, email, phone, organization, designation, city, country, created_at, updated_at)
-          VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
-          RETURNING id, full_name, email, phone, organization, designation, city, country, created_at
+          INSERT INTO visitors (phone, full_name, email, organization, designation, city, country)
+          VALUES ($1, $2, $3, $4, $5, $6, $7)
+          RETURNING id, phone, full_name, email, organization, designation, city, country, created_at
         `;
         
         console.log('🔍 Visitor SQL query:', createVisitorQuery);
         console.log('🔍 Visitor SQL parameters:', [
-          full_name !== undefined ? full_name : null, 
-          email !== undefined ? email : null, 
-          phone !== undefined ? phone : null, 
-          organization !== undefined ? organization : null, 
-          designation !== undefined ? designation : null, 
-          city !== undefined ? city : null, 
-          country !== undefined ? country : null
+          phone !== undefined ? phone : null,       // $1
+          full_name !== undefined ? full_name : null,  // $2
+          email !== undefined ? email : null,     // $3
+          organization !== undefined ? organization : null, // $4
+          designation !== undefined ? designation : null, // $5
+          city !== undefined ? city : null,       // $6
+          country !== undefined ? country : null     // $7
         ]);
         
         let visitorResult;
         try {
           visitorResult = await query(createVisitorQuery, [
-            full_name !== undefined ? full_name : null,  // $1
-            email !== undefined ? email : null,     // $2
-            phone !== undefined ? phone : null,     // $3
+            phone !== undefined ? phone : null,       // $1
+            full_name !== undefined ? full_name : null,  // $2
+            email !== undefined ? email : null,     // $3
             organization !== undefined ? organization : null, // $4
             designation !== undefined ? designation : null, // $5
-            city !== undefined ? city : null        // $6
-          ]);
+            city !== undefined ? city : null,       // $6
+            country !== undefined ? country : null     // $7
+          ]);  
           console.log('🔍 Visitor created successfully:', visitorResult.rows[0]);
         } catch (visitorError) {
           console.error('❌ Visitor creation error:', visitorError);
@@ -163,37 +164,41 @@ router.post('/visitors', requireAuth, async (req, res) => {
       });
       
       const createLeadQuery = `
-        INSERT INTO visitor_leads (visitor_id, employee_id, company_id, interests, organization, designation, city, country, notes, follow_up_date, created_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
-        RETURNING id, visitor_id, employee_id, company_id, created_at
+        INSERT INTO visitor_leads (
+          company_id, visitor_id, employee_id, notes, follow_up_date,
+          organization, designation, city, country, interests
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        RETURNING *
       `;
       
       console.log('🔍 Lead SQL query:', createLeadQuery);
       console.log('🔍 Lead SQL parameters:', [
-        visitorId,           // $1
-        finalEmployeeId,      // $2
-        companyId,           // $3
-        interests !== undefined ? interests : null,   // $4
-        organization !== undefined ? organization : null, // $5
-        designation !== undefined ? designation : null, // $6
-        city !== undefined ? city : null,       // $7
-        country !== undefined ? country : null,     // $8
-        notes !== undefined ? notes : null,       // $9
-        // created_at uses NOW() directly
+        companyId,           // $1
+        visitorId,          // $2
+        finalEmployeeId,     // $3
+        notes !== undefined ? notes : null,       // $4
+        follow_up_date !== undefined ? follow_up_date : null, // $5
+        organization !== undefined ? organization : null, // $6
+        designation !== undefined ? designation : null, // $7
+        city !== undefined ? city : null,       // $8
+        country !== undefined ? country : null,     // $9
+        interests !== undefined ? interests : null   // $10
       ]);
       
       let leadResult;
       try {
         leadResult = await query(createLeadQuery, [
-          visitorId,           // $1
-          finalEmployeeId,      // $2
-          companyId,           // $3
-          interests !== undefined ? interests : null,   // $4
-          organization !== undefined ? organization : null, // $5
-          designation !== undefined ? designation : null, // $6
-          city !== undefined ? city : null,       // $7
-          country !== undefined ? country : null,     // $8
-          notes !== undefined ? notes : null        // $9
+          companyId,           // $1
+          visitorId,          // $2
+          finalEmployeeId,     // $3
+          notes !== undefined ? notes : null,       // $4
+          follow_up_date !== undefined ? follow_up_date : null, // $5
+          organization !== undefined ? organization : null, // $6
+          designation !== undefined ? designation : null, // $7
+          city !== undefined ? city : null,       // $8
+          country !== undefined ? country : null,     // $9
+          interests !== undefined ? interests : null   // $10
         ]);
         console.log('🔍 Lead created successfully:', leadResult.rows[0]);
       } catch (leadError) {
