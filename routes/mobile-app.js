@@ -26,6 +26,10 @@ const requireAuth = (req, res, next) => {
 // POST /api/visitors - Create Visitor (Mobile App Compatible)
 router.post('/visitors', requireAuth, async (req, res) => {
   try {
+    console.log('🔍 Mobile visitor registration - Request received');
+    console.log('🔍 Mobile visitor registration - User:', req.user);
+    console.log('🔍 Mobile visitor registration - Body:', req.body);
+    
     const {
       full_name,
       email,
@@ -40,18 +44,36 @@ router.post('/visitors', requireAuth, async (req, res) => {
       employee_id
     } = req.body;
 
+    console.log('🔍 Mobile visitor registration - Extracted fields:', {
+      full_name,
+      email,
+      phone,
+      organization,
+      designation,
+      city,
+      country,
+      interests,
+      notes,
+      follow_up_date,
+      employee_id
+    });
+
     // Validate required fields
     if (!full_name || !phone) {
+      console.log('🔍 Mobile visitor registration - Validation failed: missing required fields');
       return res.status(400).json({ error: 'Full name and phone are required' });
     }
 
     // Validate employee_id matches JWT user (security check)
     if (employee_id && employee_id !== req.user.id) {
+      console.log('🔍 Mobile visitor registration - Employee ID mismatch:', employee_id, 'vs', req.user.id);
       return res.status(403).json({ error: 'Employee ID mismatch' });
     }
 
     const finalEmployeeId = employee_id || req.user.id;
     const companyId = req.user.company_id;
+    
+    console.log('🔍 Mobile visitor registration - Final IDs:', { finalEmployeeId, companyId });
 
     // Check if visitor already exists by phone
     const existingVisitorQuery = 'SELECT id, created_at FROM visitors WHERE phone = $1';
@@ -129,6 +151,64 @@ router.post('/visitors', requireAuth, async (req, res) => {
   } catch (error) {
     console.error('Mobile visitor registration error:', error);
     res.status(500).json({ error: 'Failed to register visitor' });
+  }
+});
+
+// GET /api/visitors/exists/:phone - Check Visitor Exists (Mobile App Compatibility)
+router.get('/visitors/exists/:phone', requireAuth, async (req, res) => {
+  try {
+    const { phone } = req.params;
+
+    if (!phone) {
+      return res.status(400).json({ error: 'Phone number is required' });
+    }
+
+    // Search for visitor by phone
+    const visitorQuery = `
+      SELECT id, full_name, phone, email, created_at
+      FROM visitors 
+      WHERE phone = $1
+      ORDER BY created_at DESC
+      LIMIT 1
+    `;
+
+    const result = await query(visitorQuery, [phone]);
+
+    if (result.rows.length === 0) {
+      return res.json({ exists: false });
+    }
+
+    const visitor = result.rows[0];
+
+    // Get visit statistics
+    const visitStatsQuery = `
+      SELECT 
+        COUNT(*) as total_visits,
+        MAX(created_at) as last_visit
+      FROM visitor_leads 
+      WHERE visitor_id = $1
+    `;
+
+    const statsResult = await query(visitStatsQuery, [visitor.id]);
+    const stats = statsResult.rows[0];
+
+    const responseVisitor = {
+      id: visitor.id,
+      full_name: visitor.full_name,
+      phone: visitor.phone,
+      email: visitor.email,
+      last_visit: stats.last_visit,
+      total_visits: parseInt(stats.total_visits)
+    };
+
+    res.json({
+      exists: true,
+      visitor: responseVisitor
+    });
+
+  } catch (error) {
+    console.error('Mobile visitor exists check error:', error);
+    res.status(500).json({ error: 'Failed to check visitor existence' });
   }
 });
 
