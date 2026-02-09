@@ -83,13 +83,6 @@ try {
 }
 
 try {
-  app.use('/api/visitors', visitorRoutes);
-  console.log('✅ Visitor routes loaded');
-} catch (error) {
-  console.error('❌ Visitor routes failed to load:', error);
-}
-
-try {
   app.use('/api/leads', leadRoutes);
   console.log('✅ Lead routes loaded');
 } catch (error) {
@@ -115,6 +108,13 @@ try {
   console.log('✅ Mobile App routes loaded');
 } catch (error) {
   console.error('❌ Mobile App routes failed to load:', error);
+}
+
+try {
+  app.use('/api/visitors', visitorRoutes);
+  console.log('✅ Visitor routes loaded');
+} catch (error) {
+  console.error('❌ Visitor routes failed to load:', error);
 }
 
 console.log('🚀 All API routes loaded successfully');
