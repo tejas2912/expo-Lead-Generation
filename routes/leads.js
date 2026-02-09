@@ -43,7 +43,7 @@ router.post('/',
       let finalVisitorId;
 
       if (visitor_id) {
-        // Case 1: Existing visitor - check if exists
+        // Case 1: Existing visitor - check if exists (any visitor can be captured by any company)
         const visitorQuery = 'SELECT id, phone, full_name FROM visitors WHERE id = $1';
         visitorResult = await query(visitorQuery, [visitor_id]);
         
@@ -331,7 +331,16 @@ router.put('/:id',
   async (req, res) => {
     try {
       const { id } = req.params;
-      const { interests, notes, follow_up_date } = req.body;
+      const { 
+        interests, 
+        notes, 
+        follow_up_date,
+        organization,
+        designation,
+        city,
+        country,
+        company_id
+      } = req.body;
 
       // Check if lead exists and user has access
       let accessCheckQuery = 'SELECT company_id, employee_id FROM visitor_leads WHERE id = $1';
@@ -352,15 +361,34 @@ router.put('/:id',
         return res.status(403).json({ error: 'Access denied' });
       }
 
-      // Update lead
+      // Determine target company_id
+      let targetCompanyId = lead.company_id; // Default to current company
+      
+      if (req.user.role === 'platform_admin' && company_id) {
+        // Platform admin can change company
+        targetCompanyId = company_id;
+      }
+
+      // Update lead with all fields
       const updateLeadQuery = `
         UPDATE visitor_leads 
-        SET interests = $1, notes = $2, follow_up_date = $3
-        WHERE id = $4
+        SET interests = $1, notes = $2, follow_up_date = $3, 
+            organization = $4, designation = $5, city = $6, country = $7, company_id = $8
+        WHERE id = $9
         RETURNING *
       `;
 
-      const result = await query(updateLeadQuery, [interests, notes, follow_up_date, id]);
+      const result = await query(updateLeadQuery, [
+        interests, 
+        notes, 
+        follow_up_date || null, 
+        organization, 
+        designation, 
+        city, 
+        country, 
+        targetCompanyId, 
+        id
+      ]);
       const updatedLead = result.rows[0];
 
       res.json({
