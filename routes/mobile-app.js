@@ -65,7 +65,16 @@ router.post('/visitors', requireAuth, async (req, res) => {
     }
 
     // Validate employee_id matches JWT user (security check)
-    if (employee_id && employee_id !== req.user.id) {
+    console.log('🔍 Employee ID Validation Debug:');
+    console.log('🔍 - employee_id from body:', employee_id);
+    console.log('🔍 - req.user.id from JWT:', req.user.id);
+    console.log('🔍 - employee_id type:', typeof employee_id);
+    console.log('🔍 - req.user.id type:', typeof req.user.id);
+    console.log('🔍 - employee_id stringified:', String(employee_id));
+    console.log('🔍 - req.user.id stringified:', String(req.user.id));
+    
+    // Convert both to string for comparison (UUID comparison issue)
+    if (employee_id && String(employee_id) !== String(req.user.id)) {
       console.log('🔍 Mobile visitor registration - Employee ID mismatch:', employee_id, 'vs', req.user.id);
       return res.status(403).json({ error: 'Employee ID mismatch' });
     }
