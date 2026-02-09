@@ -10,6 +10,7 @@ const visitorRoutes = require('./routes/visitors');
 const leadRoutes = require('./routes/leads');
 const adminRoutes = require('./routes/admin');
 const mobileRoutes = require('./routes/mobile');
+const mobileAppRoutes = require('./routes/mobile-app');
 
 const app = express();
 
@@ -107,6 +108,13 @@ try {
   console.log('✅ Mobile routes loaded');
 } catch (error) {
   console.error('❌ Mobile routes failed to load:', error);
+}
+
+try {
+  app.use('/api', mobileAppRoutes);
+  console.log('✅ Mobile App routes loaded');
+} catch (error) {
+  console.error('❌ Mobile App routes failed to load:', error);
 }
 
 console.log('🚀 All API routes loaded successfully');
