@@ -46,7 +46,7 @@ const createVisitorSchema = Joi.object({
   designation: Joi.string().max(200).optional(),
   city: Joi.string().max(120).optional(),
   country: Joi.string().max(120).optional(),
-  interests: Joi.string().valid('Hot', 'Warm', 'Cold', '').optional()
+  interests: Joi.string().valid('Hot', 'Warm', 'Cold', 'HOT', 'WARM', 'COLD', 'hot', 'warm', 'cold').optional()
 });
 
 const createLeadSchema = Joi.object({
@@ -66,7 +66,7 @@ const createLeadSchema = Joi.object({
   designation: Joi.string().max(200).optional(),
   city: Joi.string().max(120).optional(),
   country: Joi.string().max(120).optional(),
-  interests: Joi.string().valid('Hot', 'Warm', 'Cold', '').optional(),
+  interests: Joi.string().valid('Hot', 'Warm', 'Cold', 'HOT', 'WARM', 'COLD', 'hot', 'warm', 'cold').optional(),
   notes: Joi.string().optional(),
   follow_up_date: Joi.date().optional().allow(''),
   company_id: Joi.string().uuid().optional()
@@ -91,11 +91,12 @@ const createCompanySchema = Joi.object({
 });
 
 const updateLeadSchema = Joi.object({
+  company_id: Joi.string().uuid().optional(),
   organization: Joi.string().max(200).optional(),
   designation: Joi.string().max(200).optional(),
   city: Joi.string().max(120).optional(),
   country: Joi.string().max(120).optional(),
-  interests: Joi.string().valid('Hot', 'Warm', 'Cold', '').optional(),
+  interests: Joi.string().valid('Hot', 'Warm', 'Cold', 'HOT', 'WARM', 'COLD', 'hot', 'warm', 'cold', '').optional(),
   notes: Joi.string().optional(),
   follow_up_date: Joi.date().optional().allow('')
 }).custom((value, helpers) => {
