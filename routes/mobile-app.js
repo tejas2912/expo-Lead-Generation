@@ -58,99 +58,165 @@ router.post('/visitors', requireAuth, async (req, res) => {
       employee_id
     });
 
-    // Validate required fields
-    if (!full_name || !phone) {
-      console.log('🔍 Mobile visitor registration - Validation failed: missing required fields');
-      return res.status(400).json({ error: 'Full name and phone are required' });
-    }
+    // Main try-catch wrapper to catch all errors
+    try {
+      // Validate required fields
+      if (!full_name || !phone) {
+        console.log('🔍 Mobile visitor registration - Validation failed: missing required fields');
+        return res.status(400).json({ error: 'Full name and phone are required' });
+      }
 
-    // Validate employee_id matches JWT user (security check)
-    console.log('🔍 Employee ID Validation Debug:');
-    console.log('🔍 - employee_id from body:', employee_id);
-    console.log('🔍 - req.user.id from JWT:', req.user.id);
-    console.log('🔍 - employee_id type:', typeof employee_id);
-    console.log('🔍 - req.user.id type:', typeof req.user.id);
-    console.log('🔍 - employee_id stringified:', String(employee_id));
-    console.log('🔍 - req.user.id stringified:', String(req.user.id));
-    
-    // Always use JWT user.id for security and reliability
-    const finalEmployeeId = req.user.id;  // Use JWT user.id, not request employee_id
-    const companyId = req.user.company_id;
-    
-    console.log('🔍 Mobile visitor registration - Using JWT user:', { finalEmployeeId, companyId });
+      // Validate employee_id matches JWT user (security check)
+      console.log('🔍 Employee ID Validation Debug:');
+      console.log('🔍 - employee_id from body:', employee_id);
+      console.log('🔍 - req.user.id from JWT:', req.user.id);
+      console.log('🔍 - employee_id type:', typeof employee_id);
+      console.log('🔍 - req.user.id type:', typeof req.user.id);
+      console.log('🔍 - employee_id stringified:', String(employee_id));
+      console.log('🔍 - req.user.id stringified:', String(req.user.id));
+      
+      // Always use JWT user.id for security and reliability
+      const finalEmployeeId = req.user.id;  // Use JWT user.id, not request employee_id
+      const companyId = req.user.company_id;
+      
+      console.log('🔍 Mobile visitor registration - Using JWT user:', { finalEmployeeId, companyId });
 
-    // Check if visitor already exists by phone
-    const existingVisitorQuery = 'SELECT id, created_at FROM visitors WHERE phone = $1';
-    const existingVisitor = await query(existingVisitorQuery, [phone]);
-    
-    let visitorId;
-    let isNewVisitor = false;
+      // Check if visitor already exists by phone
+      const existingVisitorQuery = 'SELECT id, created_at FROM visitors WHERE phone = $1';
+      const existingVisitor = await query(existingVisitorQuery, [phone]);
+      
+      let visitorId;
+      let isNewVisitor = false;
 
-    if (existingVisitor.rows.length > 0) {
-      visitorId = existingVisitor.rows[0].id;
-    } else {
-      // Create new visitor
-      const createVisitorQuery = `
-        INSERT INTO visitors (full_name, email, phone, organization, designation, city, country, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
-        RETURNING id, full_name, email, phone, organization, designation, city, country, created_at
+      if (existingVisitor.rows.length > 0) {
+        visitorId = existingVisitor.rows[0].id;
+      } else {
+        // Create new visitor
+        console.log('🔍 Creating new visitor with data:', {
+          full_name, email, phone, organization, designation, city, country
+        });
+        
+        const createVisitorQuery = `
+          INSERT INTO visitors (full_name, email, phone, organization, designation, city, country, created_at, updated_at)
+          VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+          RETURNING id, full_name, email, phone, organization, designation, city, country, created_at
+        `;
+        
+        console.log('🔍 Visitor SQL query:', createVisitorQuery);
+        console.log('🔍 Visitor SQL parameters:', [full_name, email, phone, organization, designation, city, country]);
+        
+        let visitorResult;
+        try {
+          visitorResult = await query(createVisitorQuery, [
+            full_name, email, phone, organization, designation, city, country
+          ]);
+          console.log('🔍 Visitor created successfully:', visitorResult.rows[0]);
+        } catch (visitorError) {
+          console.error('❌ Visitor creation error:', visitorError);
+          console.error('❌ Visitor error details:', {
+            message: visitorError.message,
+            stack: visitorError.stack,
+            query: createVisitorQuery,
+            parameters: [full_name, email, phone, organization, designation, city, country]
+          });
+          throw visitorError;
+        }
+        
+        visitorId = visitorResult.rows[0].id;
+        isNewVisitor = true;
+      }
+
+      // Create lead
+      console.log('🔍 Creating lead with data:', {
+        visitorId, finalEmployeeId, companyId, interests, organization, designation, city, country, notes, follow_up_date
+      });
+      
+      const createLeadQuery = `
+        INSERT INTO visitor_leads (visitor_id, employee_id, company_id, interests, organization, designation, city, country, notes, follow_up_date, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
+        RETURNING id, visitor_id, employee_id, company_id, created_at
       `;
       
-      const visitorResult = await query(createVisitorQuery, [
-        full_name, email, phone, organization, designation, city, country
-      ]);
+      console.log('🔍 Lead SQL query:', createLeadQuery);
+      console.log('🔍 Lead SQL parameters:', [visitorId, finalEmployeeId, companyId, interests, organization, designation, city, country, notes, follow_up_date || null]);
       
-      visitorId = visitorResult.rows[0].id;
-      isNewVisitor = true;
+      let leadResult;
+      try {
+        leadResult = await query(createLeadQuery, [
+          visitorId, finalEmployeeId, companyId, interests, organization, designation, city, country, notes, follow_up_date || null
+        ]);
+        console.log('🔍 Lead created successfully:', leadResult.rows[0]);
+      } catch (leadError) {
+        console.error('❌ Lead creation error:', leadError);
+        console.error('❌ Lead error details:', {
+          message: leadError.message,
+          stack: leadError.stack,
+          query: createLeadQuery,
+          parameters: [visitorId, finalEmployeeId, companyId, interests, organization, designation, city, country, notes, follow_up_date || null]
+        });
+        throw leadError;
+      }
+
+      // Get visitor details for response
+      const visitorDetailsQuery = 'SELECT * FROM visitors WHERE id = $1';
+      const visitorDetails = await query(visitorDetailsQuery, [visitorId]);
+
+      const visitor = visitorDetails.rows[0];
+      const lead = leadResult.rows[0];
+
+      // Format response to match mobile app expectations
+      const responseVisitor = {
+        id: visitor.id,
+        full_name: visitor.full_name,
+        phone: visitor.phone,
+        email: visitor.email,
+        organization: visitor.organization,
+        designation: visitor.designation,
+        city: visitor.city,
+        country: visitor.country,
+        created_at: visitor.created_at
+      };
+
+      const responseLead = {
+        id: lead.id,
+        visitor_id: lead.visitor_id,
+        employee_id: lead.employee_id,
+        company_id: lead.company_id,
+        interests: interests,
+        organization: organization,
+        designation: designation,
+        city: city,
+        country: country,
+        notes: notes,
+        follow_up_date: lead.follow_up_date,
+        created_at: lead.created_at
+      };
+
+      console.log('🔍 Mobile visitor registration - Success:', { 
+        visitor: responseVisitor, 
+        lead: responseLead,
+        isNewVisitor 
+      });
+
+      res.status(201).json({
+        message: 'Visitor registered successfully',
+        visitor: responseVisitor,
+        lead: responseLead
+      });
+
+    } catch (error) {
+      console.error('❌ Mobile visitor registration - Main error:', error);
+      console.error('❌ Main error details:', {
+        message: error.message,
+        stack: error.stack,
+        requestBody: req.body,
+        user: req.user
+      });
+      res.status(500).json({ 
+        error: 'Failed to register visitor',
+        details: error.message 
+      });
     }
-
-    // Create lead
-    const createLeadQuery = `
-      INSERT INTO visitor_leads (visitor_id, employee_id, company_id, interests, organization, designation, city, country, notes, follow_up_date, created_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
-      RETURNING id, visitor_id, employee_id, company_id, created_at
-    `;
-
-    const leadResult = await query(createLeadQuery, [
-      visitorId, finalEmployeeId, companyId, interests, organization, designation, city, country, notes, follow_up_date || null
-    ]);
-
-    // Get visitor details for response
-    const visitorDetailsQuery = 'SELECT * FROM visitors WHERE id = $1';
-    const visitorDetails = await query(visitorDetailsQuery, [visitorId]);
-
-    const visitor = visitorDetails.rows[0];
-    const lead = leadResult.rows[0];
-
-    // Format response to match mobile app expectations
-    const responseVisitor = {
-      id: visitor.id,
-      full_name: visitor.full_name,
-      email: visitor.email,
-      phone: visitor.phone,
-      organization: visitor.organization,
-      designation: visitor.designation,
-      city: visitor.city,
-      country: visitor.country,
-      interests: visitor.interests,
-      notes: notes || visitor.notes,
-      follow_up_date: follow_up_date,
-      employee_id: finalEmployeeId,
-      created_at: visitor.created_at
-    };
-
-    const responseLead = {
-      id: lead.id,
-      visitor_id: lead.visitor_id,
-      status: lead.status || 'new',
-      created_at: lead.created_at
-    };
-
-    res.status(201).json({
-      message: 'Visitor registered successfully',
-      visitor: responseVisitor,
-      lead: responseLead
-    });
 
   } catch (error) {
     console.error('Mobile visitor registration error:', error);
