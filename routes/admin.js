@@ -909,4 +909,98 @@ router.delete('/company-admins/:id', authenticateToken, requireRole(['platform_a
   }
 });
 
+// Delete company (platform admin only) - Sequential deletion required
+router.delete('/companies/:id', authenticateToken, requireRole(['platform_admin']), async (req, res) => {
+  try {
+    const { id } = req.params;
+    console.log('🔍 Delete Company - ID:', id);
+
+    // Step 1: Check if company exists
+    const companyQuery = 'SELECT id, name FROM companies WHERE id = $1';
+    const companyResult = await query(companyQuery, [id]);
+    
+    if (companyResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Company not found' });
+    }
+
+    const company = companyResult.rows[0];
+    console.log('🔍 Delete Company - Company found:', company.name);
+
+    // Step 2: Check if company has employees
+    const employeesQuery = 'SELECT COUNT(*) as count FROM users WHERE company_id = $1 AND role = $2 AND is_active = true';
+    const employeesResult = await query(employeesQuery, [id, 'employee']);
+    const employeeCount = parseInt(employeesResult.rows[0].count);
+    
+    console.log('🔍 Delete Company - Employee count:', employeeCount);
+    
+    if (employeeCount > 0) {
+      return res.status(400).json({ 
+        error: 'Cannot delete company with active employees',
+        details: `Please delete all ${employeeCount} employees first before deleting the company.`,
+        action_required: 'Delete all employees first'
+      });
+    }
+
+    // Step 3: Check if company has company admins
+    const adminsQuery = 'SELECT COUNT(*) as count FROM users WHERE company_id = $1 AND role = $2 AND is_active = true';
+    const adminsResult = await query(adminsQuery, [id, 'company_admin']);
+    const adminCount = parseInt(adminsResult.rows[0].count);
+    
+    console.log('🔍 Delete Company - Company admin count:', adminCount);
+    
+    if (adminCount > 0) {
+      return res.status(400).json({ 
+        error: 'Cannot delete company with active company admins',
+        details: `Please delete all ${adminCount} company admins first before deleting the company.`,
+        action_required: 'Delete all company admins first'
+      });
+    }
+
+    // Step 4: Check for any remaining visitor leads (should be none if no employees)
+    const leadsQuery = 'SELECT COUNT(*) as count FROM visitor_leads WHERE company_id = $1';
+    const leadsResult = await query(leadsQuery, [id]);
+    const leadCount = parseInt(leadsResult.rows[0].count);
+    
+    console.log('🔍 Delete Company - Visitor leads count:', leadCount);
+    
+    if (leadCount > 0) {
+      return res.status(400).json({ 
+        error: 'Cannot delete company with existing visitor leads',
+        details: `Company has ${leadCount} visitor leads. Please ensure all leads are handled first.`,
+        action_required: 'Handle all visitor leads first'
+      });
+    }
+
+    // Step 5: Delete the company (safe to delete now)
+    console.log('🔍 Delete Company - Proceeding with deletion...');
+    const deleteCompanyQuery = 'DELETE FROM companies WHERE id = $1 RETURNING *';
+    const deleteResult = await query(deleteCompanyQuery, [id]);
+    
+    if (deleteResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Company not found' });
+    }
+
+    const deletedCompany = deleteResult.rows[0];
+    console.log('🔍 Delete Company - Success:', deletedCompany.name);
+
+    res.json({
+      message: 'Company deleted successfully',
+      company: {
+        id: deletedCompany.id,
+        name: deletedCompany.name,
+        company_code: deletedCompany.company_code,
+        status: deletedCompany.status
+      },
+      deletion_summary: {
+        employees_deleted: 0,
+        admins_deleted: 0,
+        leads_deleted: 0
+      }
+    });
+  } catch (error) {
+    console.error('Delete company error:', error);
+    res.status(500).json({ error: 'Failed to delete company' });
+  }
+});
+
 module.exports = router;

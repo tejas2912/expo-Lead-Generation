@@ -8,6 +8,7 @@ import {
   MagnifyingGlassIcon,
   EyeIcon,
   EyeSlashIcon,
+  TrashIcon,
 } from '@heroicons/react/24/outline';
 
 const CompaniesPage = () => {
@@ -82,6 +83,17 @@ const CompaniesPage = () => {
     }
   );
 
+  // Delete company mutation
+  const deleteCompanyMutation = useMutation(adminAPI.deleteCompany, {
+    onSuccess: () => {
+      queryClient.invalidateQueries('companies');
+    },
+    onError: (error) => {
+      console.error('Delete company error:', error);
+      // Error will be handled in the delete function
+    },
+  });
+
   const {
     register,
     handleSubmit,
@@ -115,6 +127,29 @@ const CompaniesPage = () => {
       status: company.status || 'active',
     });
     setShowCreateModal(true);
+  };
+
+  const handleDeleteCompany = (company) => {
+    const confirmMessage = `Are you sure you want to delete "${company.name}"?\n\nIMPORTANT: Before deleting a company, you must:\n1. Delete all employees first\n2. Delete all company admins first\n3. Handle all visitor leads\n\nThis action cannot be undone.`;
+    
+    if (window.confirm(confirmMessage)) {
+      deleteCompanyMutation.mutate(company.id, {
+        onSuccess: () => {
+          alert(`Company "${company.name}" deleted successfully`);
+        },
+        onError: (error) => {
+          const errorMessage = error.response?.data?.error || 'Failed to delete company';
+          const errorDetails = error.response?.data?.details || '';
+          const actionRequired = error.response?.data?.action_required || '';
+          
+          if (actionRequired) {
+            alert(`${errorMessage}\n\n${errorDetails}\n\nAction Required: ${actionRequired}`);
+          } else {
+            alert(`${errorMessage}\n${errorDetails}`);
+          }
+        }
+      });
+    }
   };
 
   const handleSearch = (e) => {
@@ -268,6 +303,14 @@ const CompaniesPage = () => {
                           ) : (
                             <EyeIcon className="h-4 w-4" />
                           )}
+                        </button>
+                        <button
+                          onClick={() => handleDeleteCompany(company)}
+                          className="text-red-600 hover:text-red-900"
+                          title="Delete Company"
+                          disabled={deleteCompanyMutation.isLoading}
+                        >
+                          <TrashIcon className="h-4 w-4" />
                         </button>
                       </div>
                     </td>
