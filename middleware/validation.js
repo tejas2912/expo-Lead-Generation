@@ -46,7 +46,10 @@ const createVisitorSchema = Joi.object({
   designation: Joi.string().max(200).optional(),
   city: Joi.string().max(120).optional(),
   country: Joi.string().max(120).optional(),
-  interests: Joi.string().valid('Hot', 'Warm', 'Cold', 'HOT', 'WARM', 'COLD', 'hot', 'warm', 'cold').optional()
+  interests: Joi.string().valid('Hot', 'Warm', 'Cold', 'HOT', 'WARM', 'COLD', 'hot', 'warm', 'cold').optional(),
+  notes: Joi.string().optional(),
+  follow_up_date: Joi.date().optional().allow(''),
+  employee_id: Joi.string().optional()
 });
 
 const createLeadSchema = Joi.object({
