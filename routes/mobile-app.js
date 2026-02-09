@@ -122,24 +122,24 @@ router.post('/visitors', requireAuth, async (req, res) => {
         
         console.log('🔍 Visitor SQL query:', createVisitorQuery);
         console.log('🔍 Visitor SQL parameters:', [
-          full_name || null,  // $1
-          email || null,     // $2
-          phone || null,     // $3
-          organization || null, // $4
-          designation || null, // $5
-          city || null,       // $6
-          // created_at and updated_at use NOW() directly
+          full_name !== undefined ? full_name : null, 
+          email !== undefined ? email : null, 
+          phone !== undefined ? phone : null, 
+          organization !== undefined ? organization : null, 
+          designation !== undefined ? designation : null, 
+          city !== undefined ? city : null, 
+          country !== undefined ? country : null
         ]);
         
         let visitorResult;
         try {
           visitorResult = await query(createVisitorQuery, [
-            full_name || null,  // $1
-            email || null,     // $2
-            phone || null,     // $3
-            organization || null, // $4
-            designation || null, // $5
-            city || null        // $6
+            full_name !== undefined ? full_name : null,  // $1
+            email !== undefined ? email : null,     // $2
+            phone !== undefined ? phone : null,     // $3
+            organization !== undefined ? organization : null, // $4
+            designation !== undefined ? designation : null, // $5
+            city !== undefined ? city : null        // $6
           ]);
           console.log('🔍 Visitor created successfully:', visitorResult.rows[0]);
         } catch (visitorError) {
@@ -173,12 +173,12 @@ router.post('/visitors', requireAuth, async (req, res) => {
         visitorId,           // $1
         finalEmployeeId,      // $2
         companyId,           // $3
-        interests || null,   // $4
-        organization || null, // $5
-        designation || null, // $6
-        city || null,       // $7
-        country || null,     // $8
-        notes || null,       // $9
+        interests !== undefined ? interests : null,   // $4
+        organization !== undefined ? organization : null, // $5
+        designation !== undefined ? designation : null, // $6
+        city !== undefined ? city : null,       // $7
+        country !== undefined ? country : null,     // $8
+        notes !== undefined ? notes : null,       // $9
         // created_at uses NOW() directly
       ]);
       
@@ -188,12 +188,12 @@ router.post('/visitors', requireAuth, async (req, res) => {
           visitorId,           // $1
           finalEmployeeId,      // $2
           companyId,           // $3
-          interests || null,   // $4
-          organization || null, // $5
-          designation || null, // $6
-          city || null,       // $7
-          country || null,     // $8
-          notes || null        // $9
+          interests !== undefined ? interests : null,   // $4
+          organization !== undefined ? organization : null, // $5
+          designation !== undefined ? designation : null, // $6
+          city !== undefined ? city : null,       // $7
+          country !== undefined ? country : null,     // $8
+          notes !== undefined ? notes : null        // $9
         ]);
         console.log('🔍 Lead created successfully:', leadResult.rows[0]);
       } catch (leadError) {
@@ -208,11 +208,40 @@ router.post('/visitors', requireAuth, async (req, res) => {
       }
 
       // Get visitor details for response
+      console.log('🔍 Getting visitor details for response...');
+      console.log('🔍 - visitorId for query:', visitorId);
+      console.log('🔍 - visitorId type:', typeof visitorId);
+      
       const visitorDetailsQuery = 'SELECT * FROM visitors WHERE id = $1';
       const visitorDetails = await query(visitorDetailsQuery, [visitorId]);
+      
+      console.log('🔍 Visitor details query result:', visitorDetails.rows);
+      console.log('🔍 - Visitor details row count:', visitorDetails.rows.length);
+      
+      if (visitorDetails.rows.length === 0) {
+        console.error('❌ CRITICAL: Visitor not found after creation! visitorId:', visitorId);
+        throw new Error('Visitor not found after creation');
+      }
 
       const visitor = visitorDetails.rows[0];
+      console.log('🔍 Retrieved visitor from DB:', visitor);
       const lead = leadResult.rows[0];
+      console.log('🔍 Lead creation result analysis:');
+      console.log('🔍 - Lead result rows:', leadResult.rows);
+      console.log('🔍 - Lead result row count:', leadResult.rows.length);
+      console.log('🔍 - Retrieved lead from DB:', lead);
+      console.log('🔍 - Lead ID:', lead.id);
+      console.log('🔍 - Lead visitor_id:', lead.visitor_id);
+      console.log('🔍 - Lead employee_id:', lead.employee_id);
+      console.log('🔍 - Lead company_id:', lead.company_id);
+      console.log('🔍 - Lead interests:', lead.interests);
+      console.log('🔍 - Lead organization:', lead.organization);
+      console.log('🔍 - Lead designation:', lead.designation);
+      console.log('🔍 - Lead city:', lead.city);
+      console.log('🔍 - Lead country:', lead.country);
+      console.log('🔍 - Lead notes:', lead.notes);
+      console.log('🔍 - Lead follow_up_date:', lead.follow_up_date);
+      console.log('🔍 - Lead created_at:', lead.created_at);
 
       // Format response to match mobile app expectations
       console.log('🔍 Formatting response - Field mapping debug:');
