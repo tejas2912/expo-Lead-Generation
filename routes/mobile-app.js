@@ -206,16 +206,16 @@ router.get('/visitors/phone-suggestions/:query', async (req, res) => {
       return res.json({ suggestions: [] });
     }
 
-    // Search for visitors by phone
+    // Search for visitors by phone (starting with query)
     const visitorQuery = `
       SELECT phone, full_name
       FROM visitors 
-      WHERE phone ILIKE $1
+      WHERE phone LIKE $1
       ORDER BY created_at DESC
       LIMIT 10
     `;
 
-    const result = await query(visitorQuery, [`%${cleanQuery}%`]);
+    const result = await query(visitorQuery, [`${cleanQuery}%`]);
 
     // Format suggestions as requested by mobile app
     const suggestions = result.rows.map(visitor => 
