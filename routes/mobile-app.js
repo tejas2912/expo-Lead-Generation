@@ -108,7 +108,21 @@ router.post('/visitors', requireAuth, async (req, res) => {
       const finalEmployeeId = req.user.id;  // Use JWT user.id, not request employee_id
       const companyId = req.user.company_id;
       
+      console.log('🔍 Mobile visitor registration - User data from JWT:', req.user);
       console.log('🔍 Mobile visitor registration - Using JWT user:', { finalEmployeeId, companyId });
+      
+      // Validate that we have the required company_id
+      if (!companyId) {
+        console.error('❌ Company ID is missing from user data:', req.user);
+        return res.status(400).json({ 
+          error: 'Company ID is required',
+          debug: {
+            user: req.user,
+            finalEmployeeId,
+            companyId
+          }
+        });
+      }
 
       // Check if visitor already exists by phone
       const existingVisitorQuery = 'SELECT id, created_at FROM visitors WHERE phone = $1';
