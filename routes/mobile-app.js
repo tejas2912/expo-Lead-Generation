@@ -1,9 +1,20 @@
+// Mobile App API Routes - Updated for deployment debugging
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { query } = require('../config/database');
 const { authenticateToken, requireRole } = require('../middleware/auth');
+
+// Deployment health check endpoint
+router.get('/health', (req, res) => {
+  res.json({ 
+    status: 'healthy', 
+    timestamp: new Date().toISOString(),
+    service: 'mobile-app-api',
+    version: '1.0.2'
+  });
+});
 
 // Middleware to validate JWT token (but not require specific role)
 const requireAuth = (req, res, next) => {
@@ -514,13 +525,13 @@ router.post('/users/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    // Generate JWT token
+    // Generate JWT token - Fixed user ID mapping
     const token = jwt.sign(
       { 
-        userId: user.id, 
+        id: user.id, // Fixed: was userId, now matches middleware expectation
         email: user.email, 
         role: user.role, 
-        companyId: user.company_id 
+        company_id: user.company_id // Fixed: was companyId, now matches middleware
       },
       process.env.JWT_SECRET || 'your-secret-key',
       { expiresIn: '24h' }
@@ -546,7 +557,15 @@ router.post('/users/login', async (req, res) => {
 
   } catch (error) {
     console.error('Mobile login error:', error);
-    res.status(500).json({ error: 'Failed to login' });
+    console.error('Login error details:', {
+      message: error.message,
+      stack: error.stack,
+      email: req.body.email
+    });
+    res.status(500).json({ 
+      error: 'Failed to login',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 });
 
@@ -603,7 +622,15 @@ router.post('/users/register', async (req, res) => {
 
   } catch (error) {
     console.error('Mobile register error:', error);
-    res.status(500).json({ error: 'Failed to register user' });
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack,
+      requestBody: req.body
+    });
+    res.status(500).json({ 
+      error: 'Failed to register user',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 });
 
