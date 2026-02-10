@@ -104,9 +104,9 @@ router.post('/visitors', requireAuth, async (req, res) => {
       console.log('🔍 - employee_id stringified:', String(employee_id));
       console.log('🔍 - req.user.id stringified:', String(req.user.id));
       
-      // Always use JWT user.id for security and reliability
-      const finalEmployeeId = req.user.id;  // Use JWT user.id, not request employee_id
-      const companyId = req.user.company_id;
+      // Always use JWT user.userId for security and reliability
+      const finalEmployeeId = req.user.userId;  // Use JWT user.userId, not request employee_id
+      const companyId = req.user.companyId;
       
       console.log('🔍 Mobile visitor registration - User data from JWT:', req.user);
       console.log('🔍 Mobile visitor registration - Using JWT user:', { finalEmployeeId, companyId });
@@ -539,13 +539,13 @@ router.post('/users/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    // Generate JWT token - Fixed user ID mapping
+    // Generate JWT token
     const token = jwt.sign(
       { 
-        id: user.id, // Fixed: was userId, now matches middleware expectation
+        userId: user.id, 
         email: user.email, 
         role: user.role, 
-        company_id: user.company_id // Fixed: was companyId, now matches middleware
+        companyId: user.company_id 
       },
       process.env.JWT_SECRET || 'your-secret-key',
       { expiresIn: '24h' }
