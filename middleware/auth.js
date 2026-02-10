@@ -26,7 +26,13 @@ const authenticateToken = async (req, res, next) => {
       WHERE u.id = $1 AND u.is_active = true
     `;
     
-    const userResult = await query(userQuery, [decoded.id]);
+    // Handle both 'id' and 'userId' for backward compatibility
+    const userId = decoded.id || decoded.userId;
+    if (!userId) {
+      return res.status(401).json({ error: 'Invalid token structure' });
+    }
+    
+    const userResult = await query(userQuery, [userId]);
     
     if (userResult.rows.length === 0) {
       return res.status(401).json({ error: 'Invalid token or user inactive' });
