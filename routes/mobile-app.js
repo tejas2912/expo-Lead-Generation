@@ -539,6 +539,29 @@ router.post('/users/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
+    // Check company status for company admin and employee users
+    if (user.role === 'company_admin' || user.role === 'employee') {
+      if (!user.company_id) {
+        return res.status(401).json({ error: 'User must be assigned to a company' });
+      }
+
+      const companyStatusQuery = 'SELECT status FROM companies WHERE id = $1';
+      const companyResult = await query(companyStatusQuery, [user.company_id]);
+      
+      if (companyResult.rows.length === 0) {
+        return res.status(401).json({ error: 'Company not found' });
+      }
+
+      const company = companyResult.rows[0];
+      if (company.status !== 'active') {
+        return res.status(401).json({ 
+          error: 'Company is inactive. Please contact your administrator.' 
+        });
+      }
+    }
+
+    // Platform admin can always login (no company check needed)
+
     // Generate JWT token
     const token = jwt.sign(
       { 
