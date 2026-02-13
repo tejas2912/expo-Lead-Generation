@@ -78,6 +78,7 @@ export const usersAPI = {
 // Admin API
 export const adminAPI = {
   getCompanies: (params) => api.get('/admin/companies', { params }),
+  getEmployees: (params) => api.get('/admin/users', { params: { ...params, role: 'employee' } }),
   createCompany: (data) => api.post('/admin/companies', data),
   updateCompany: (id, data) => api.put(`/admin/companies/${id}`, data),
   deleteCompany: (id) => api.delete(`/admin/companies/${id}`),

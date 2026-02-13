@@ -20,6 +20,12 @@ const LeadsPage = () => {
   const [selectedVisitor, setSelectedVisitor] = useState(null);
   const [visitorSearchPhone, setVisitorSearchPhone] = useState('');
   
+  // Filter states
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [selectedEmployee, setSelectedEmployee] = useState('');
+  const [selectedCompany, setSelectedCompany] = useState('');
+  
   const queryClient = useQueryClient();
 
   // Fetch companies for Platform Admin dropdown
@@ -31,12 +37,36 @@ const LeadsPage = () => {
     }
   );
 
-  const companies = companiesData?.data?.companies || [];
+  // Fetch employees for Company Admin dropdown
+  const { data: employeesData } = useQuery(
+    'employees',
+    () => adminAPI.getEmployees(),
+    {
+      enabled: hasRole('company_admin'),
+    }
+  );
 
-  // Fetch leads
+  const companies = companiesData?.data?.companies || [];
+  const employees = employeesData?.data?.employees || [];
+
+  // Fetch leads with filters
   const { data: leadsData, isLoading } = useQuery(
-    ['leads', { page, search: searchTerm }],
-    () => leadsAPI.list({ page, search: searchTerm }),
+    ['leads', { 
+      page, 
+      search: searchTerm,
+      date_from: dateFrom,
+      date_to: dateTo,
+      employee_id: selectedEmployee,
+      company_id: selectedCompany
+    }],
+    () => leadsAPI.list({ 
+      page, 
+      search: searchTerm,
+      date_from: dateFrom,
+      date_to: dateTo,
+      employee_id: selectedEmployee,
+      company_id: selectedCompany
+    }),
     {
       keepPreviousData: true,
     }
@@ -214,6 +244,54 @@ const LeadsPage = () => {
     setPage(1);
   };
 
+  // Export handlers
+  const handleExportCSV = async () => {
+    try {
+      const params = new URLSearchParams({
+        ...(dateFrom && { date_from: dateFrom }),
+        ...(dateTo && { date_to: dateTo }),
+        ...(selectedEmployee && { employee_id: selectedEmployee }),
+        ...(selectedCompany && { company_id: selectedCompany }),
+        ...(searchTerm && { search: searchTerm })
+      });
+      
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}/leads/export/csv?${params.toString()}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `leads-export-${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+      } else {
+        const errorText = await response.text();
+        console.error('Export response:', errorText);
+        alert('Failed to export CSV: ' + (response.statusText || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Export error:', error);
+      alert('Failed to export CSV');
+    }
+  };
+
+  const handleClearFilters = () => {
+    setDateFrom('');
+    setDateTo('');
+    setSelectedEmployee('');
+    setSelectedCompany('');
+    setSearchTerm('');
+    setPage(1);
+  };
+
   const leads = leadsData?.data?.leads || [];
   const pagination = leadsData?.data?.pagination || {};
 
@@ -271,19 +349,116 @@ const LeadsPage = () => {
         </div>
       </div>
 
-      {/* Total Leads Counter */}
+      {/* Filters and Export Section */}
       <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-        <div className="flex items-center">
-          <div className="flex-shrink-0">
-            <ClipboardDocumentListIcon className="h-8 w-8 text-blue-600" />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+          {/* Date Range Filters */}
+          <div>
+            <label className="block text-sm font-medium text-blue-900 mb-2">From Date</label>
+            <input
+              type="date"
+              className="input"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+            />
           </div>
-          <div className="ml-4">
-            <h2 className="text-lg font-semibold text-blue-900">
-              Total Leads: <span className="text-2xl font-bold text-blue-600">{leadsData?.data?.total_count || 0}</span>
-            </h2>
-            <p className="text-sm text-blue-700">
-              All leads from your company
-            </p>
+          <div>
+            <label className="block text-sm font-medium text-blue-900 mb-2">To Date</label>
+            <input
+              type="date"
+              className="input"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+            />
+          </div>
+
+          {/* Employee/Company Filters */}
+          {hasRole('platform_admin') && (
+            <div>
+              <label className="block text-sm font-medium text-blue-900 mb-2">Company</label>
+              <select
+                className="input"
+                value={selectedCompany}
+                onChange={(e) => setSelectedCompany(e.target.value)}
+              >
+                <option value="">All Companies</option>
+                {companies.map((company) => (
+                  <option key={company.id} value={company.id}>
+                    {company.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {hasRole('company_admin') && (
+            <div>
+              <label className="block text-sm font-medium text-blue-900 mb-2">Employee</label>
+              <select
+                className="input"
+                value={selectedEmployee}
+                onChange={(e) => setSelectedEmployee(e.target.value)}
+              >
+                <option value="">All Employees</option>
+                {employees.map((employee) => (
+                  <option key={employee.id} value={employee.id}>
+                    {employee.full_name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
+
+        {/* Search and Actions Row */}
+        <div className="flex flex-col sm:flex-row gap-4 items-center">
+          <div className="flex-1">
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
+              </div>
+              <input
+                type="text"
+                className="input pl-10 w-full"
+                placeholder="Search leads..."
+                value={searchTerm}
+                onChange={handleSearch}
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={handleClearFilters}
+            >
+              Clear Filters
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={handleExportCSV}
+            >
+              Export CSV
+            </button>
+          </div>
+        </div>
+
+        {/* Total Count */}
+        <div className="mt-4 pt-4 border-t border-blue-200">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <ClipboardDocumentListIcon className="h-8 w-8 text-blue-600" />
+            </div>
+            <div className="ml-4">
+              <h2 className="text-lg font-semibold text-blue-900">
+                Total Leads: <span className="text-2xl font-bold text-blue-600">{leadsData?.data?.total_count || 0}</span>
+              </h2>
+              <p className="text-sm text-blue-700">
+                {dateFrom || dateTo || selectedEmployee || selectedCompany || searchTerm ? 'Filtered results' : 'All leads from your company'}
+              </p>
+            </div>
           </div>
         </div>
       </div>

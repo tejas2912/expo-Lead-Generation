@@ -2,6 +2,7 @@ const express = require('express');
 const { query } = require('../config/database');
 const { authenticateToken, requireRole, requireCompanyAccess } = require('../middleware/auth');
 const { validateRequest, createLeadSchema, updateLeadSchema } = require('../middleware/validation');
+const createCsvWriter = require('csv-writer').createObjectCsvWriter;
 
 const router = express.Router();
 
@@ -478,6 +479,150 @@ router.get('/stats/overview', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('Lead stats error:', error);
     res.status(500).json({ error: 'Failed to fetch lead statistics' });
+  }
+});
+
+// Export leads to CSV with same filtering as GET /
+router.get('/export/csv', authenticateToken, async (req, res) => {
+  try {
+    const { 
+      status, 
+      employee_id, 
+      date_from, 
+      date_to,
+      search,
+      company_id 
+    } = req.query;
+    
+    let whereClause = 'WHERE 1=1';
+    let queryParams = [];
+    let paramIndex = 1;
+
+    // Filter by company based on user role (same logic as GET /)
+    if (req.user.role === 'platform_admin') {
+      // Platform admin can filter by company if specified
+      if (company_id) {
+        whereClause += ` AND vl.company_id = $${paramIndex}`;
+        queryParams.push(company_id);
+        paramIndex++;
+      }
+    } else {
+      // Company admin and employee can only see their company's leads
+      whereClause += ` AND vl.company_id = $${paramIndex}`;
+      queryParams.push(req.user.company_id);
+      paramIndex++;
+    }
+
+    // Employee can only see their own leads unless they're company admin
+    if (req.user.role === 'employee') {
+      whereClause += ` AND vl.employee_id = $${paramIndex}`;
+      queryParams.push(req.user.id);
+      paramIndex++;
+    } else if (employee_id) {
+      // Company admin can filter by employee
+      whereClause += ` AND vl.employee_id = $${paramIndex}`;
+      queryParams.push(employee_id);
+      paramIndex++;
+    }
+
+    // Additional filters (same as GET /)
+    if (date_from) {
+      whereClause += ` AND vl.created_at >= $${paramIndex}`;
+      queryParams.push(date_from);
+      paramIndex++;
+    }
+
+    if (date_to) {
+      whereClause += ` AND vl.created_at <= $${paramIndex}`;
+      queryParams.push(date_to + ' 23:59:59');
+      paramIndex++;
+    }
+
+    if (search) {
+      whereClause += ` AND (v.phone ILIKE $${paramIndex} OR v.full_name ILIKE $${paramIndex} OR v.email ILIKE $${paramIndex})`;
+      queryParams.push(`%${search}%`);
+      paramIndex++;
+    }
+
+    if (status) {
+      whereClause += ` AND vl.status = $${paramIndex}`;
+      queryParams.push(status);
+      paramIndex++;
+    }
+
+    // Get filtered leads for export
+    const leadsQuery = `
+      SELECT 
+        vl.*,
+        v.phone as visitor_phone,
+        v.full_name as visitor_name,
+        v.email as visitor_email,
+        v.organization as visitor_organization,
+        v.designation as visitor_designation,
+        v.city as visitor_city,
+        v.country as visitor_country,
+        e.full_name as employee_name,
+        e.email as employee_email,
+        c.name as company_name
+      FROM visitor_leads vl
+      JOIN visitors v ON vl.visitor_id = v.id
+      JOIN users e ON vl.employee_id = e.id
+      JOIN companies c ON vl.company_id = c.id
+      ${whereClause}
+      ORDER BY vl.created_at DESC
+    `;
+
+    const leadsResult = await query(leadsQuery, queryParams);
+    
+    if (leadsResult.rows.length === 0) {
+      return res.status(404).json({ error: 'No leads found for the specified filters' });
+    }
+
+    // Generate CSV filename with timestamp
+    const timestamp = new Date().toISOString().split('T')[0];
+    const filename = `leads-export-${timestamp}.csv`;
+
+    // Create CSV writer
+    const csvWriter = createCsvWriter({
+      path: filename,
+      header: [
+        { id: 'id', title: 'Lead ID' },
+        { id: 'created_at', title: 'Lead Date' },
+        { id: 'visitor_name', title: 'Visitor Name' },
+        { id: 'visitor_phone', title: 'Visitor Phone' },
+        { id: 'visitor_email', title: 'Visitor Email' },
+        { id: 'visitor_organization', title: 'Organization' },
+        { id: 'visitor_designation', title: 'Designation' },
+        { id: 'visitor_city', title: 'City' },
+        { id: 'visitor_country', title: 'Country' },
+        { id: 'employee_name', title: 'Employee Name' },
+        { id: 'employee_email', title: 'Employee Email' },
+        { id: 'company_name', title: 'Company Name' },
+        { id: 'notes', title: 'Notes' },
+        { id: 'follow_up_date', title: 'Follow-up Date' },
+        { id: 'interests', title: 'Interests' },
+        { id: 'status', title: 'Status' }
+      ]
+    });
+
+    // Write CSV and send to client
+    await csvWriter.writeRecords(leadsResult.rows);
+
+    // Read the file and send as download
+    const fs = require('fs');
+    const csvData = fs.readFileSync(filename);
+    
+    // Clean up the file
+    fs.unlinkSync(filename);
+
+    // Set headers for file download
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(csvData);
+
+  } catch (error) {
+    console.error('Export CSV error:', error);
+    res.status(500).json({ error: 'Failed to export leads' });
   }
 });
 
